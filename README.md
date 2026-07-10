@@ -62,10 +62,10 @@ CORS_ORIGINS=https://your-docs-site.com
 Recommended server path:
 
 ```bash
-sudo mkdir -p /opt/mkdocs-ai-chat
-sudo chown "$USER":"$USER" /opt/mkdocs-ai-chat
-git clone https://github.com/yourname/mkdocs-ai-chat.git /opt/mkdocs-ai-chat
-cd /opt/mkdocs-ai-chat
+sudo mkdir -p /srv/mkdocs-ai-chat
+sudo chown "$USER":"$USER" /srv/mkdocs-ai-chat
+git clone https://github.com/yourname/mkdocs-ai-chat.git /srv/mkdocs-ai-chat
+cd /srv/mkdocs-ai-chat
 
 python3 -m venv .venv
 source .venv/bin/activate
@@ -80,7 +80,7 @@ bash scripts/install_service.sh
 The service runs:
 
 ```bash
-/opt/mkdocs-ai-chat/.venv/bin/gunicorn app.main:app -b 0.0.0.0:8000 --workers 1 --threads 4
+/srv/mkdocs-ai-chat/.venv/bin/gunicorn app.main:app -b 0.0.0.0:8000 --workers 1 --threads 4
 ```
 
 Put Nginx/Caddy in front of port `8000` and serve it as HTTPS.
@@ -94,12 +94,12 @@ Add these repository secrets:
 - `SERVER_HOST`
 - `SERVER_USER`
 - `SERVER_SSH_KEY`
-- optional `APP_DIR`, default `/opt/mkdocs-ai-chat`
+- optional `APP_DIR`, default `/srv/mkdocs-ai-chat`
 
 On push to `main`, `.github/workflows/deploy.yml` SSHes into the server and runs:
 
 ```bash
-cd /opt/mkdocs-ai-chat
+cd /srv/mkdocs-ai-chat
 bash scripts/deploy.sh
 ```
 

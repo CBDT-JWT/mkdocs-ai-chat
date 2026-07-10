@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_DIR="${APP_DIR:-/opt/mkdocs-ai-chat}"
+APP_DIR="${APP_DIR:-/srv/mkdocs-ai-chat}"
 SERVICE_NAME="${SERVICE_NAME:-mkdocs-ai-chat}"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 VENV_DIR="${VENV_DIR:-.venv}"
