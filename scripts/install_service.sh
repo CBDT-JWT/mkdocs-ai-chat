@@ -4,18 +4,22 @@ set -euo pipefail
 APP_DIR="${APP_DIR:-/opt/mkdocs-ai-chat}"
 SERVICE_NAME="${SERVICE_NAME:-mkdocs-ai-chat}"
 USER_NAME="${USER_NAME:-$USER}"
-CONDA_ENV="${CONDA_ENV:-web}"
-CONDA_BIN="${CONDA_BIN:-$(command -v conda)}"
+PYTHON_BIN="${PYTHON_BIN:-python3}"
+VENV_DIR="${VENV_DIR:-.venv}"
 
 if [ ! -f "$APP_DIR/.env" ]; then
   echo "Missing $APP_DIR/.env. Copy .env.example and configure it first." >&2
   exit 1
 fi
 
-if [ -z "$CONDA_BIN" ]; then
-  echo "conda not found. Set CONDA_BIN=/path/to/conda." >&2
-  exit 1
+cd "$APP_DIR"
+
+if [ ! -d "$VENV_DIR" ]; then
+  "$PYTHON_BIN" -m venv "$VENV_DIR"
 fi
+
+"$VENV_DIR/bin/python" -m pip install --upgrade pip
+"$VENV_DIR/bin/python" -m pip install -r requirements.txt
 
 sudo tee "/etc/systemd/system/${SERVICE_NAME}.service" >/dev/null <<SERVICE
 [Unit]
@@ -27,7 +31,7 @@ Type=simple
 User=${USER_NAME}
 WorkingDirectory=${APP_DIR}
 EnvironmentFile=${APP_DIR}/.env
-ExecStart=${CONDA_BIN} run --no-capture-output -n ${CONDA_ENV} gunicorn app.main:app -b 0.0.0.0:8000 --workers 1 --threads 4 --timeout 120
+ExecStart=${APP_DIR}/${VENV_DIR}/bin/gunicorn app.main:app -b 0.0.0.0:8000 --workers 1 --threads 4 --timeout 120
 Restart=always
 RestartSec=5
 

@@ -16,7 +16,8 @@ This project intentionally does not use Docker. It is a single repository with:
 ## Quick Start
 
 ```bash
-conda activate web
+python3 -m venv .venv
+source .venv/bin/activate
 python -m pip install -r requirements.txt
 
 cp .env.example .env
@@ -58,7 +59,7 @@ CORS_ORIGINS=https://your-docs-site.com
 
 ## Production Without Docker
 
-Recommended server path, using the existing conda environment named `web`:
+Recommended server path:
 
 ```bash
 sudo mkdir -p /opt/mkdocs-ai-chat
@@ -66,7 +67,8 @@ sudo chown "$USER":"$USER" /opt/mkdocs-ai-chat
 git clone https://github.com/yourname/mkdocs-ai-chat.git /opt/mkdocs-ai-chat
 cd /opt/mkdocs-ai-chat
 
-conda activate web
+python3 -m venv .venv
+source .venv/bin/activate
 python -m pip install -r requirements.txt
 
 cp .env.example .env
@@ -78,7 +80,7 @@ bash scripts/install_service.sh
 The service runs:
 
 ```bash
-conda run -n web gunicorn app.main:app -b 0.0.0.0:8000 --workers 1 --threads 4
+/opt/mkdocs-ai-chat/.venv/bin/gunicorn app.main:app -b 0.0.0.0:8000 --workers 1 --threads 4
 ```
 
 Put Nginx/Caddy in front of port `8000` and serve it as HTTPS.
@@ -101,7 +103,7 @@ cd /opt/mkdocs-ai-chat
 bash scripts/deploy.sh
 ```
 
-That pulls the latest code, installs Python dependencies into conda env `web`, and restarts systemd.
+That pulls the latest code, creates `.venv` if needed, installs Python dependencies, and restarts systemd.
 
 ## Publish the Widget
 
