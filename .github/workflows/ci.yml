@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      AUTO_SYNC_ON_START: "false"
+      DEEPSEEK_API_KEY: "test"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install lightweight test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flask requests numpy pytest
+      - name: Run tests
+        run: pytest -q
+      - name: Check widget files exist
+        run: |
+          test -s widget/dist/ai-chat.js
+          test -s widget/dist/ai-chat.css
