@@ -6,6 +6,7 @@ SERVICE_NAME="${SERVICE_NAME:-mkdocs-ai-chat}"
 USER_NAME="${USER_NAME:-$USER}"
 PYTHON_BIN="${PYTHON_BIN:-python3}"
 VENV_DIR="${VENV_DIR:-.venv}"
+PIP_INDEX_URL="${PIP_INDEX_URL:-https://pypi.tuna.tsinghua.edu.cn/simple}"
 
 if [ ! -f "$APP_DIR/.env" ]; then
   echo "Missing $APP_DIR/.env. Copy .env.example and configure it first." >&2
@@ -18,8 +19,8 @@ if [ ! -d "$VENV_DIR" ]; then
   "$PYTHON_BIN" -m venv "$VENV_DIR"
 fi
 
-"$VENV_DIR/bin/python" -m pip install --upgrade pip
-"$VENV_DIR/bin/python" -m pip install -r requirements.txt
+"$VENV_DIR/bin/python" -m pip install --upgrade pip -i "$PIP_INDEX_URL"
+"$VENV_DIR/bin/python" -m pip install -r requirements.txt -i "$PIP_INDEX_URL"
 
 sudo tee "/etc/systemd/system/${SERVICE_NAME}.service" >/dev/null <<SERVICE
 [Unit]

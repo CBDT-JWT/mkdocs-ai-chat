@@ -18,7 +18,7 @@ This project intentionally does not use Docker. It is a single repository with:
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -r requirements.txt
+python -m pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 cp .env.example .env
 # edit .env and set DEEPSEEK_API_KEY
@@ -75,13 +75,21 @@ cd /srv/mkdocs-ai-chat
 
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install -r requirements.txt
+python -m pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
 
 cp .env.example .env
 vim .env
 
 bash scripts/install_service.sh
 ```
+
+The install and deploy scripts use the Tsinghua PyPI mirror by default:
+
+```bash
+PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+```
+
+Override it only if the server needs another mirror.
 
 The service runs:
 
