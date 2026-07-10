@@ -22,3 +22,4 @@ def test_sync_removes_non_git_target_before_clone(monkeypatch, tmp_path: Path):
     assert commit == "abc123"
     assert not (target / "partial-file").exists()
     assert calls[0][0][:2] == ["git", "clone"]
+    assert calls[0][0][-1] == str(target.resolve())

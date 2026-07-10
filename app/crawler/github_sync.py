@@ -43,7 +43,7 @@ class GitHubSync:
                 "--branch",
                 self.branch,
                 self.clone_url,
-                str(self.target_dir),
+                str(self.target_dir.resolve()),
             ],
             cwd=self.target_dir.parent,
         )
