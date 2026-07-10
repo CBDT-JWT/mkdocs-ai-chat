@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import subprocess
 import os
+import shutil
 from pathlib import Path
 
 
@@ -29,6 +30,9 @@ class GitHubSync:
             self._run(["git", "checkout", self.branch], cwd=self.target_dir)
             self._run(["git", "pull", "--ff-only", "origin", self.branch], cwd=self.target_dir)
             return self.current_commit()
+
+        if self.target_dir.exists():
+            shutil.rmtree(self.target_dir)
 
         self._run(
             [
