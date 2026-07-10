@@ -17,6 +17,7 @@ class Settings:
     github_repo: str = os.getenv("GITHUB_REPO", "CBDT-JWT/EEnotes")
     github_branch: str = os.getenv("GITHUB_BRANCH", "main")
     doc_path: str = os.getenv("DOC_PATH", "docs")
+    git_use_system_proxy: bool = _bool_env("GIT_USE_SYSTEM_PROXY", False)
     data_dir: Path = Path(os.getenv("DATA_DIR", "data"))
     site_base_url: str = os.getenv("SITE_BASE_URL", "").rstrip("/")
 
@@ -24,7 +25,7 @@ class Settings:
     deepseek_base_url: str = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
     deepseek_model: str = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
 
-    embedding_model: str = os.getenv("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+    embedding_model: str = os.getenv("EMBEDDING_MODEL", "hash")
     top_k: int = int(os.getenv("TOP_K", "5"))
     chunk_size: int = int(os.getenv("CHUNK_SIZE", "1200"))
     chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "180"))

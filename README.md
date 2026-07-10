@@ -48,14 +48,20 @@ Edit `.env`:
 GITHUB_REPO=CBDT-JWT/EEnotes
 GITHUB_BRANCH=main
 DOC_PATH=docs
+GIT_USE_SYSTEM_PROXY=false
 SITE_BASE_URL=https://your-docs-site.com
 
 DEEPSEEK_API_KEY=sk-...
+EMBEDDING_MODEL=hash
 SYNC_INTERVAL_HOURS=12
 CORS_ORIGINS=https://your-docs-site.com
 ```
 
 `GITHUB_REPO` accepts either `owner/repository` or a full Git URL.
+
+`GIT_USE_SYSTEM_PROXY=false` makes repository sync ignore broken server proxy environment variables such as `127.0.0.1:7890`.
+
+`EMBEDDING_MODEL=hash` uses the built-in offline embedding fallback. Set it to a sentence-transformers model only when the server can download or already has the model cached.
 
 ## Production Without Docker
 

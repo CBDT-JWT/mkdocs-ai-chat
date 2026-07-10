@@ -15,6 +15,8 @@ class Embedder:
 
     @cached_property
     def model(self):
+        if not self.model_name or self.model_name.strip().lower() in {"hash", "fallback", "none"}:
+            return None
         try:
             from sentence_transformers import SentenceTransformer
 

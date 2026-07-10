@@ -70,7 +70,11 @@ def create_app(config: Settings = settings) -> Flask:
             token = request.headers.get("Authorization", "").removeprefix("Bearer ").strip()
             if token != config.admin_token:
                 return jsonify({"error": "unauthorized"}), 401
-        state.sync_and_reindex()
+        try:
+            state.sync_and_reindex()
+        except Exception as exc:
+            logging.exception("manual reindex failed")
+            return jsonify({"status": "error", "error": str(exc)}), 500
         return jsonify({"status": "ok", "indexed_chunks": len(state.store.chunks), "last_sync": state.last_sync})
 
     if config.auto_sync_on_start:
@@ -100,7 +104,12 @@ class AppState:
             return
         try:
             logging.info("syncing %s", self.config.github_repo)
-            commit = GitHubSync(self.config.github_repo, self.config.github_branch, self.config.repo_dir).sync()
+            commit = GitHubSync(
+                self.config.github_repo,
+                self.config.github_branch,
+                self.config.repo_dir,
+                use_system_proxy=self.config.git_use_system_proxy,
+            ).sync()
             chunks = load_markdown_chunks(
                 self.config.repo_dir,
                 self.config.doc_path,

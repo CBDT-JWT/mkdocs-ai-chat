@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import subprocess
+import os
 from pathlib import Path
 
 
@@ -9,10 +10,11 @@ class GitHubSyncError(RuntimeError):
 
 
 class GitHubSync:
-    def __init__(self, repo: str, branch: str, target_dir: Path) -> None:
+    def __init__(self, repo: str, branch: str, target_dir: Path, *, use_system_proxy: bool = False) -> None:
         self.repo = repo
         self.branch = branch
         self.target_dir = target_dir
+        self.use_system_proxy = use_system_proxy
 
     @property
     def clone_url(self) -> str:
@@ -46,8 +48,7 @@ class GitHubSync:
     def current_commit(self) -> str:
         return self._run(["git", "rev-parse", "HEAD"], cwd=self.target_dir).strip()
 
-    @staticmethod
-    def _run(cmd: list[str], cwd: Path) -> str:
+    def _run(self, cmd: list[str], cwd: Path) -> str:
         try:
             completed = subprocess.run(
                 cmd,
@@ -55,8 +56,25 @@ class GitHubSync:
                 check=True,
                 text=True,
                 capture_output=True,
+                env=self._env(),
             )
         except subprocess.CalledProcessError as exc:
             detail = exc.stderr.strip() or exc.stdout.strip()
             raise GitHubSyncError(f"{' '.join(cmd)} failed: {detail}") from exc
         return completed.stdout
+
+    def _env(self) -> dict[str, str]:
+        env = os.environ.copy()
+        if self.use_system_proxy:
+            return env
+        for key in (
+            "http_proxy",
+            "https_proxy",
+            "HTTP_PROXY",
+            "HTTPS_PROXY",
+            "all_proxy",
+            "ALL_PROXY",
+            "GIT_PROXY_COMMAND",
+        ):
+            env.pop(key, None)
+        return env
