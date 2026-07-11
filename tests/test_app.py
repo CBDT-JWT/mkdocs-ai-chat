@@ -1,6 +1,6 @@
 from app.config import Settings
 from app.crawler.markdown_loader import DocumentChunk
-from app.main import _sources, create_app
+from app.main import _sanitize_history, _sources, create_app
 
 
 def test_health_endpoint(tmp_path, monkeypatch):
@@ -59,3 +59,17 @@ def test_sources_filter_low_scores_and_add_highlight():
 
     assert [source["title"] for source in sources] == ["基本概念", "抽样定理"]
     assert sources[0]["url"].endswith("?h=Sa")
+
+
+def test_sanitize_history_keeps_recent_user_assistant_messages():
+    history = _sanitize_history(
+        [
+            {"role": "system", "content": "ignore"},
+            {"role": "user", "content": "前一个问题"},
+            {"role": "assistant", "content": "前一个回答"},
+            {"role": "user", "content": "x" * 1200},
+        ]
+    )
+
+    assert [item["role"] for item in history] == ["user", "assistant", "user"]
+    assert len(history[-1]["content"]) == 1000

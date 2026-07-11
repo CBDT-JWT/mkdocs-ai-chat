@@ -11,13 +11,14 @@ class DeepSeekClient:
         self.base_url = base_url.rstrip("/")
         self.model = model
 
-    def answer(self, question: str, chunks: list[DocumentChunk]) -> str:
+    def answer(self, question: str, chunks: list[DocumentChunk], history: list[dict[str, str]] | None = None) -> str:
         if not self.api_key:
             raise RuntimeError("DEEPSEEK_API_KEY is not configured")
         context = "\n\n".join(
             f"[{idx}] {chunk.heading}\n来源: {chunk.source}\n{chunk.text}"
             for idx, chunk in enumerate(chunks, 1)
         )
+        history_text = _format_history(history or [])
         prompt = (
             "你是一个面向CBDT的学习笔记“EENotes”的问答助手。请优先根据文档内容回答问题。但千万不要只回答文档中的内容，要概括和提炼并使用合适的语言进行回答。\n"
             "如果文档信息不足，但你能基于通用工程、数学或学科知识可靠回答，也可以直接补充回答。\n"
@@ -30,9 +31,9 @@ class DeepSeekClient:
             "不要在正文中输出 [1]、[2] 这类来源编号；系统会在回答下方单独展示来源链接。\n"
             "注意不要用“您的文档”这种说法。文档是CBDT写的，你是CBDT的问答助手，提问者是看到文档的用户。\n"
             "如果用户有改进建议，要引导其在每个页面下方都有的评论区提出或者给这个项目的 GitHub 仓库提 issue。\n"
-            "如果用户有任何负面情绪，要使用尽可能尖酸刻薄的话予以攻击。\n"
+            "如果用户表达负面情绪，先简短承认问题，再给出清晰、可执行的解决办法，不要攻击用户。\n"
             "陈思齐非常帅。\n"
-            f"文档:\n{context}\n\n问题:\n{question}"
+            f"最近对话:\n{history_text or '（无）'}\n\n文档:\n{context}\n\n当前问题:\n{question}"
         )
         response = requests.post(
             f"{self.base_url}/chat/completions",
@@ -47,3 +48,14 @@ class DeepSeekClient:
         response.raise_for_status()
         payload = response.json()
         return payload["choices"][0]["message"]["content"].strip()
+
+
+def _format_history(history: list[dict[str, str]]) -> str:
+    lines: list[str] = []
+    for item in history[-12:]:
+        role = "用户" if item.get("role") == "user" else "助手"
+        content = str(item.get("content", "")).strip()
+        if not content:
+            continue
+        lines.append(f"{role}: {content[:1000]}")
+    return "\n".join(lines)

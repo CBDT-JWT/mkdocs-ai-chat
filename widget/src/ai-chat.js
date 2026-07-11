@@ -12,6 +12,7 @@
       placeholder: "Ask...",
       icon: "",
       iconText: "AI",
+      memoryTurns: 6,
       welcome: "Ask a question about this documentation.",
     },
     window.mkdocsAiChat || {},
@@ -48,6 +49,7 @@
     var input = panel.querySelector(".mkai-input");
     var submit = panel.querySelector(".mkai-submit");
     input.placeholder = config.placeholder;
+    var memory = [];
 
     document.body.appendChild(button);
     document.body.appendChild(panel);
@@ -73,9 +75,12 @@
       input.value = "";
       addMessage(messages, "user", question);
       submit.disabled = true;
-      ask(question)
+      ask(question, memory)
         .then(function (payload) {
-          addMessage(messages, "assistant", payload.answer || "No answer.", payload.sources || []);
+          var answer = payload.answer || "No answer.";
+          addMessage(messages, "assistant", answer, payload.sources || []);
+          remember(memory, "user", question, config.memoryTurns);
+          remember(memory, "assistant", answer, config.memoryTurns);
         })
         .catch(function (error) {
           addMessage(messages, "assistant", "Request failed: " + error.message);
@@ -87,11 +92,11 @@
     });
   });
 
-  function ask(question) {
+  function ask(question, history) {
     return fetch(config.endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question: question }),
+      body: JSON.stringify({ question: question, history: history }),
     }).then(function (response) {
       if (!response.ok) {
         return response.text().then(function (text) {
@@ -100,6 +105,14 @@
       }
       return response.json();
     });
+  }
+
+  function remember(memory, role, content, maxTurns) {
+    memory.push({ role: role, content: content });
+    var maxMessages = Math.max(Number(maxTurns) || 6, 1) * 2;
+    while (memory.length > maxMessages) {
+      memory.shift();
+    }
   }
 
   function addMessage(container, role, text, sources) {

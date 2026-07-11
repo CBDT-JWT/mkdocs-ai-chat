@@ -54,12 +54,13 @@ def create_app(config: Settings = settings) -> Flask:
         question = str(payload.get("question", "")).strip()
         if not question:
             return jsonify({"error": "question is required"}), 400
+        history = _sanitize_history(payload.get("history", []))
         results = state.retriever.retrieve(question)
         answer_results = _answer_results(results, question)
         chunks = [chunk for chunk, _score in answer_results]
         if not chunks:
             return jsonify({"answer": "知识库还没有可检索的文档。", "sources": []})
-        answer = state.llm.answer(question, chunks)
+        answer = state.llm.answer(question, chunks, history)
         return jsonify(
             {
                 "answer": answer,
@@ -196,6 +197,23 @@ def _source_matches_question(chunk, question: str) -> bool:
     if "sa" in question.lower():
         return any(term in haystack for term in ("sa", "sinc", "抽样", "采样"))
     return True
+
+
+def _sanitize_history(value) -> list[dict[str, str]]:
+    if not isinstance(value, list):
+        return []
+    history: list[dict[str, str]] = []
+    for item in value[-12:]:
+        if not isinstance(item, dict):
+            continue
+        role = item.get("role")
+        if role not in {"user", "assistant"}:
+            continue
+        content = str(item.get("content", "")).strip()
+        if not content:
+            continue
+        history.append({"role": role, "content": content[:1000]})
+    return history
 
 
 app = create_app()
