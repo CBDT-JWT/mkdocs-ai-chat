@@ -38,7 +38,7 @@ class Embedder:
 
     def _hash_embed(self, text: str) -> np.ndarray:
         vector = np.zeros(self.fallback_dimensions, dtype="float32")
-        tokens = re.findall(r"[\w\u4e00-\u9fff]+", text.lower())
+        tokens = _tokens(text)
         for token in tokens:
             digest = hashlib.blake2b(token.encode("utf-8"), digest_size=8).digest()
             slot = int.from_bytes(digest[:4], "big") % self.fallback_dimensions
@@ -48,3 +48,13 @@ class Embedder:
         if norm:
             vector /= norm
         return vector
+
+
+def _tokens(text: str) -> list[str]:
+    tokens = re.findall(r"[a-zA-Z0-9_]+", text.lower())
+    cjk_runs = re.findall(r"[\u4e00-\u9fff]+", text)
+    for run in cjk_runs:
+        tokens.extend(run)
+        tokens.extend(run[i : i + 2] for i in range(max(len(run) - 1, 0)))
+        tokens.extend(run[i : i + 3] for i in range(max(len(run) - 2, 0)))
+    return [token for token in tokens if token]
