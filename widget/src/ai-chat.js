@@ -116,18 +116,73 @@
       message.appendChild(sourceBox);
     }
     container.appendChild(message);
+    typesetMath(message);
     container.scrollTop = container.scrollHeight;
   }
 
   function renderMarkdown(text) {
     var escaped = escapeHtml(text || "");
+    var math = [];
+    escaped = extractMath(escaped, math);
     escaped = escaped.replace(/```([\s\S]*?)```/g, function (_match, code) {
       return "<pre><code>" + code.trim() + "</code></pre>";
     });
     escaped = escaped.replace(/`([^`]+)`/g, "<code>$1</code>");
     escaped = escaped.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
     escaped = escaped.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
+    escaped = restoreMath(escaped, math);
     return escaped;
+  }
+
+  function extractMath(text, math) {
+    return text
+      .replace(/\\\[([\s\S]*?)\\\]/g, function (_match, formula) {
+        return stashMath(math, formula, true);
+      })
+      .replace(/\$\$([\s\S]*?)\$\$/g, function (_match, formula) {
+        return stashMath(math, formula, true);
+      })
+      .replace(/\\\(([\s\S]*?)\\\)/g, function (_match, formula) {
+        return stashMath(math, formula, false);
+      })
+      .replace(/(^|[^\\$])\$([^$\n]+?)\$/g, function (_match, prefix, formula) {
+        return prefix + stashMath(math, formula, false);
+      });
+  }
+
+  function stashMath(math, formula, display) {
+    var id = math.length;
+    math.push({ formula: formula.trim(), display: display });
+    return "@@MKAI_MATH_" + id + "@@";
+  }
+
+  function restoreMath(text, math) {
+    return text.replace(/@@MKAI_MATH_(\d+)@@/g, function (_match, id) {
+      var item = math[Number(id)];
+      if (!item) return "";
+      var tag = item.display ? "div" : "span";
+      var className = item.display ? "mkai-math mkai-math-display" : "mkai-math mkai-math-inline";
+      var open = item.display ? "\\[" : "\\(";
+      var close = item.display ? "\\]" : "\\)";
+      return "<" + tag + ' class="' + className + '">' + open + item.formula + close + "</" + tag + ">";
+    });
+  }
+
+  function typesetMath(node) {
+    if (window.MathJax && window.MathJax.typesetPromise) {
+      window.MathJax.typesetPromise([node]).catch(function () {});
+      return;
+    }
+    if (window.renderMathInElement) {
+      window.renderMathInElement(node, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "\\[", right: "\\]", display: true },
+          { left: "$", right: "$", display: false },
+          { left: "\\(", right: "\\)", display: false },
+        ],
+      });
+    }
   }
 
   function injectCssIfNeeded() {
