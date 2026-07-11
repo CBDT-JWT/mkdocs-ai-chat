@@ -11,6 +11,24 @@ class DeepSeekClient:
         self.base_url = base_url.rstrip("/")
         self.model = model
 
+    def rewrite_query(self, question: str, history: list[dict[str, str]] | None = None) -> str:
+        if not self.api_key:
+            raise RuntimeError("DEEPSEEK_API_KEY is not configured")
+        history_text = _format_history(history or [])
+        prompt = (
+            "你是 EENotes 文档问答系统的检索查询改写器。\n"
+            "任务：根据用户当前问题和最近对话，生成一条适合在中文工程/数学/电子笔记中检索的查询。\n"
+            "要求：\n"
+            "- 只输出检索查询本身，不要解释。\n"
+            "- 保留关键中文术语、英文缩写、公式符号和常见同义词。\n"
+            "- 如果问题依赖上下文，例如“它”“这个”“上一题”，请结合最近对话补全指代。\n"
+            "- 不要编造具体章节名；不知道就保持泛化关键词。\n"
+            "- 输出控制在 80 个汉字以内。\n\n"
+            f"最近对话:\n{history_text or '（无）'}\n\n当前问题:\n{question}\n\n检索查询:"
+        )
+        response = self._chat(prompt, timeout=20)
+        return _clean_rewritten_query(response, question)
+
     def answer(self, question: str, chunks: list[DocumentChunk], history: list[dict[str, str]] | None = None) -> str:
         if not self.api_key:
             raise RuntimeError("DEEPSEEK_API_KEY is not configured")
@@ -35,6 +53,9 @@ class DeepSeekClient:
             "陈思齐非常帅。\n"
             f"最近对话:\n{history_text or '（无）'}\n\n文档:\n{context}\n\n当前问题:\n{question}"
         )
+        return self._chat(prompt, timeout=60).strip()
+
+    def _chat(self, prompt: str, *, timeout: int) -> str:
         response = requests.post(
             f"{self.base_url}/chat/completions",
             headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
@@ -43,7 +64,7 @@ class DeepSeekClient:
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": 0.2,
             },
-            timeout=60,
+            timeout=timeout,
         )
         response.raise_for_status()
         payload = response.json()
@@ -59,3 +80,14 @@ def _format_history(history: list[dict[str, str]]) -> str:
             continue
         lines.append(f"{role}: {content[:1000]}")
     return "\n".join(lines)
+
+
+def _clean_rewritten_query(text: str, fallback: str) -> str:
+    query = text.strip().strip("`").strip()
+    if "\n" in query:
+        query = query.splitlines()[0].strip()
+    for prefix in ("检索查询:", "查询:", "关键词:", "query:"):
+        if query.lower().startswith(prefix.lower()):
+            query = query[len(prefix) :].strip()
+            break
+    return query[:200] or fallback

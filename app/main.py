@@ -55,8 +55,9 @@ def create_app(config: Settings = settings) -> Flask:
         if not question:
             return jsonify({"error": "question is required"}), 400
         history = _sanitize_history(payload.get("history", []))
-        results = state.retriever.retrieve(question)
-        answer_results = _answer_results(results, question)
+        retrieval_query = state.rewrite_query(question, history)
+        results = state.retriever.retrieve(retrieval_query)
+        answer_results = _answer_results(results, retrieval_query)
         chunks = [chunk for chunk, _score in answer_results]
         if not chunks:
             return jsonify({"answer": "知识库还没有可检索的文档。", "sources": []})
@@ -64,7 +65,7 @@ def create_app(config: Settings = settings) -> Flask:
         return jsonify(
             {
                 "answer": answer,
-                "sources": _sources(answer_results, question),
+                "sources": _sources(answer_results, retrieval_query),
             }
         )
 
@@ -137,6 +138,16 @@ class AppState:
             return True
         bucket.append(now)
         return False
+
+    def rewrite_query(self, question: str, history: list[dict[str, str]]) -> str:
+        try:
+            query = self.llm.rewrite_query(question, history)
+        except Exception:
+            logging.exception("query rewrite failed; falling back to original question")
+            return question
+        if query and query != question:
+            logging.info("rewrote retrieval query: %s -> %s", question, query)
+        return query or question
 
 
 def _sources(results: list[tuple], question: str) -> list[dict[str, str]]:
