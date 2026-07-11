@@ -11,6 +11,7 @@ jobs:
     env:
       AUTO_SYNC_ON_START: "false"
       DEEPSEEK_API_KEY: "test"
+      PYTHONPATH: ${{ github.workspace }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
