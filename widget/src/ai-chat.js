@@ -10,6 +10,7 @@
       endpoint: "",
       title: "Docs AI",
       placeholder: "Ask...",
+      icon: "",
       iconText: "AI",
       welcome: "Ask a question about this documentation.",
     },
@@ -28,9 +29,10 @@
   ready(function () {
     injectCssIfNeeded();
 
-    var button = el("button", "mkai-button", config.iconText);
+    var button = el("button", "mkai-button");
     button.type = "button";
     button.setAttribute("aria-label", "Open AI chat");
+    setButtonIcon(button, config);
 
     var panel = el("section", "mkai-panel");
     panel.setAttribute("aria-label", config.title);
@@ -201,6 +203,24 @@
     link.href = href;
     link.dataset.mkaiCss = "true";
     document.head.appendChild(link);
+  }
+
+  function setButtonIcon(button, config) {
+    if (!config.icon) {
+      button.textContent = config.iconText;
+      return;
+    }
+    var img = el("img", "mkai-button-icon");
+    img.src = config.icon;
+    img.alt = "";
+    img.loading = "lazy";
+    img.referrerPolicy = "no-referrer";
+    img.addEventListener("error", function () {
+      button.classList.remove("mkai-button-has-icon");
+      button.textContent = config.iconText;
+    });
+    button.classList.add("mkai-button-has-icon");
+    button.appendChild(img);
   }
 
   function el(tag, className, text) {

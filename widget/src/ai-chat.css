@@ -24,6 +24,19 @@
   font: 700 14px/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+.mkai-button-has-icon {
+  padding: 0;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.mkai-button-icon {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 .mkai-panel {
   position: fixed;
   right: 24px;
