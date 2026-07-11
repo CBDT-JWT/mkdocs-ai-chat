@@ -121,7 +121,7 @@
   }
 
   function renderMarkdown(text) {
-    var escaped = escapeHtml(text || "");
+    var escaped = escapeHtml(stripLooseCitations(text || ""));
     var math = [];
     escaped = extractMath(escaped, math);
     escaped = escaped.replace(/```([\s\S]*?)```/g, function (_match, code) {
@@ -132,6 +132,13 @@
     escaped = escaped.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
     escaped = restoreMath(escaped, math);
     return escaped;
+  }
+
+  function stripLooseCitations(text) {
+    return String(text)
+      .replace(/^\s*\[\d+\]\s*$/gm, "")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
   }
 
   function extractMath(text, math) {
