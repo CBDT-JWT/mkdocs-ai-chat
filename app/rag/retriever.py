@@ -66,7 +66,11 @@ class Retriever:
 
 
 def _terms(text: str) -> list[str]:
-    terms = re.findall(r"[a-zA-Z0-9_]+", text.lower())
+    terms = [
+        term
+        for term in re.findall(r"[a-zA-Z0-9_]+", text.lower())
+        if len(term) > 1 or term in {"c"}
+    ]
     for run in re.findall(r"[\u4e00-\u9fff]+", text):
         terms.extend(run[i : i + 2] for i in range(max(len(run) - 1, 0)))
         terms.extend(run[i : i + 3] for i in range(max(len(run) - 2, 0)))

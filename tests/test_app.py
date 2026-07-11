@@ -1,5 +1,6 @@
 from app.config import Settings
-from app.main import create_app
+from app.crawler.markdown_loader import DocumentChunk
+from app.main import _sources, create_app
 
 
 def test_health_endpoint(tmp_path, monkeypatch):
@@ -15,3 +16,46 @@ def test_health_endpoint(tmp_path, monkeypatch):
 
     assert response.status_code == 200
     assert response.get_json()["status"] == "ok"
+
+
+def test_sources_filter_low_scores_and_add_highlight():
+    results = [
+        (
+            DocumentChunk(
+                id="sa",
+                text="Sa信号定义为 sin t over t。",
+                title="信号与系统",
+                heading="基本概念",
+                source="signals-and-systems.md",
+                url="https://note.weitao-jiang.cn/signals-and-systems",
+            ),
+            7.0,
+        ),
+        (
+            DocumentChunk(
+                id="sampling",
+                text="抽样定理中的内插过程本质上就是卷一个 sinc。",
+                title="通信",
+                heading="抽样定理",
+                source="communication-and-networks.md",
+                url="https://note.weitao-jiang.cn/communication-and-networks",
+            ),
+            6.0,
+        ),
+        (
+            DocumentChunk(
+                id="noise",
+                text="二元已知信号检测。",
+                title="统计信号处理",
+                heading="二元已知信号检测",
+                source="statistic-signal-processing.md",
+                url="https://note.weitao-jiang.cn/statistic-signal-processing",
+            ),
+            2.0,
+        ),
+    ]
+
+    sources = _sources(results, "什么是Sa函数？")
+
+    assert [source["title"] for source in sources] == ["基本概念", "抽样定理"]
+    assert sources[0]["url"].endswith("?h=Sa")

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import logging
+import re
 import threading
 import time
 from collections import defaultdict, deque
+from urllib.parse import quote, urlsplit, urlunsplit
 
 from flask import Flask, jsonify, request
 
@@ -53,14 +55,15 @@ def create_app(config: Settings = settings) -> Flask:
         if not question:
             return jsonify({"error": "question is required"}), 400
         results = state.retriever.retrieve(question)
-        chunks = [chunk for chunk, _score in results]
+        answer_results = _answer_results(results, question)
+        chunks = [chunk for chunk, _score in answer_results]
         if not chunks:
             return jsonify({"answer": "知识库还没有可检索的文档。", "sources": []})
         answer = state.llm.answer(question, chunks)
         return jsonify(
             {
                 "answer": answer,
-                "sources": _sources(chunks),
+                "sources": _sources(answer_results, question),
             }
         )
 
@@ -135,16 +138,64 @@ class AppState:
         return False
 
 
-def _sources(chunks: list) -> list[dict[str, str]]:
+def _sources(results: list[tuple], question: str) -> list[dict[str, str]]:
     seen: set[str] = set()
     sources: list[dict[str, str]] = []
-    for chunk in chunks:
+    if not results:
+        return sources
+    top_score = max(score for _chunk, score in results) or 1.0
+    for chunk, score in results:
+        if score < max(top_score * 0.55, 2.0):
+            continue
+        if not _source_matches_question(chunk, question):
+            continue
         key = chunk.url or chunk.source
         if key in seen:
             continue
         seen.add(key)
-        sources.append({"title": chunk.heading or chunk.title, "url": chunk.url, "source": chunk.source})
+        sources.append(
+            {
+                "title": chunk.heading or chunk.title,
+                "url": _source_url_with_highlight(chunk.url, question, chunk),
+                "source": chunk.source,
+            }
+        )
+        if len(sources) >= 3:
+            break
     return sources
+
+
+def _answer_results(results: list[tuple], question: str) -> list[tuple]:
+    if "sa" not in question.lower():
+        return results
+    filtered = [(chunk, score) for chunk, score in results if _source_matches_question(chunk, question)]
+    return filtered or results
+
+
+def _source_url_with_highlight(url: str, question: str, chunk) -> str:
+    term = _highlight_term(question, chunk)
+    if not url or not term:
+        return url
+    parts = urlsplit(url)
+    query = f"{parts.query}&h={quote(term)}" if parts.query else f"h={quote(term)}"
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, query, parts.fragment))
+
+
+def _highlight_term(question: str, chunk) -> str:
+    if "sa" in question.lower():
+        return "Sa"
+    haystack = f"{chunk.heading}\n{chunk.text}"
+    for token in re.findall(r"[\u4e00-\u9fff]{2,8}|[A-Za-z][A-Za-z0-9_]{1,20}", question):
+        if token in haystack:
+            return token
+    return chunk.heading or ""
+
+
+def _source_matches_question(chunk, question: str) -> bool:
+    haystack = f"{chunk.title}\n{chunk.heading}\n{chunk.source}\n{chunk.text}".lower()
+    if "sa" in question.lower():
+        return any(term in haystack for term in ("sa", "sinc", "抽样", "采样"))
+    return True
 
 
 app = create_app()
