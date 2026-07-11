@@ -22,20 +22,29 @@ class Retriever:
         return self._merge(vector_results, lexical_results)[: self.top_k]
 
     def _lexical_search(self, question: str, limit: int) -> list[tuple[DocumentChunk, float]]:
-        query_terms = _terms(question)
+        expanded_question = _expand_query(question)
+        query_terms = _terms(expanded_question)
         if not query_terms or not self.store.chunks:
             return []
 
         query_counts = Counter(query_terms)
+        query_phrases = _phrases(expanded_question)
         results: list[tuple[DocumentChunk, float]] = []
         for chunk in self.store.chunks:
-            haystack = f"{chunk.title}\n{chunk.heading}\n{chunk.source}\n{chunk.text}"
-            doc_counts = Counter(_terms(haystack))
+            weighted_haystack = "\n".join(
+                [
+                    f"{chunk.title}\n{chunk.heading}\n{chunk.source}\n" * 4,
+                    chunk.text,
+                ]
+            )
+            raw_haystack = f"{chunk.title}\n{chunk.heading}\n{chunk.source}\n{chunk.text}".lower()
+            doc_counts = Counter(_terms(weighted_haystack))
             overlap = set(query_counts) & set(doc_counts)
             if not overlap:
                 continue
             score = sum(query_counts[term] * doc_counts[term] for term in overlap)
             score /= math.sqrt(sum(v * v for v in doc_counts.values())) or 1.0
+            score += sum(4.0 for phrase in query_phrases if phrase and phrase.lower() in raw_haystack)
             results.append((chunk, float(score)))
 
         results.sort(key=lambda item: item[1], reverse=True)
@@ -64,3 +73,19 @@ def _terms(text: str) -> list[str]:
         if len(run) <= 4:
             terms.append(run)
     return [term for term in terms if term]
+
+
+def _expand_query(text: str) -> str:
+    expansions: list[str] = []
+    normalized = text.lower()
+    if "sa" in normalized or "sa函数" in text or "sa信号" in text:
+        expansions.extend(["Sa信号", "抽样信号", "采样函数", "sinc", "Sa(t)", "sin t"])
+    return " ".join([text, *expansions])
+
+
+def _phrases(text: str) -> list[str]:
+    phrases: list[str] = []
+    for phrase in re.findall(r"[\u4e00-\u9fffA-Za-z0-9_()]+", text):
+        if len(phrase) >= 2:
+            phrases.append(phrase)
+    return phrases
