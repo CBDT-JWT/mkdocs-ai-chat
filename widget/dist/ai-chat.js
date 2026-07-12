@@ -17,11 +17,14 @@
       clearLabel: "Clear history",
       clearConfirm: "Clear all chat history?",
       storageKey: "",
+      mathJaxUrl: "https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js",
     },
     window.mkdocsAiChat || {},
     script ? script.dataset : {}
   );
   var mathTypesetQueue = Promise.resolve();
+  var mathEnginePromise = null;
+  var activeMathEngine = null;
 
   function ready(fn) {
     if (document.readyState === "loading") {
@@ -612,38 +615,115 @@
   }
 
   function typesetMath(node) {
-    if (window.MathJax && window.MathJax.typesetPromise) {
-      var mathJax = window.MathJax;
-      mathTypesetQueue = mathTypesetQueue
-        .catch(function () {})
-        .then(function () {
-          if (!node.isConnected) return;
-          if (mathJax.startup && mathJax.startup.promise) return mathJax.startup.promise;
-        })
-        .then(function () {
-          if (!node.isConnected) return;
-          if (mathJax.typesetClear) mathJax.typesetClear([node]);
-          return mathJax.typesetPromise([node]);
-        })
-        .catch(function () {});
-      return;
+    if (!node.querySelector(".mkai-math")) return;
+    mathTypesetQueue = mathTypesetQueue
+      .catch(function () {})
+      .then(function () {
+        return ensureMathEngine();
+      })
+      .then(function (engine) {
+        if (!engine || !node.isConnected) return;
+        if (engine.type === "mathjax") {
+          if (engine.api.typesetClear) engine.api.typesetClear([node]);
+          return engine.api.typesetPromise([node]);
+        }
+        engine.api(node, {
+          delimiters: [
+            { left: "$$", right: "$$", display: true },
+            { left: "\\[", right: "\\]", display: true },
+            { left: "$", right: "$", display: false },
+            { left: "\\(", right: "\\)", display: false },
+          ],
+        });
+      })
+      .catch(function () {});
+  }
+
+  function ensureMathEngine() {
+    var detected = detectMathEngine();
+    if (detected) {
+      activeMathEngine = detected;
+      return Promise.resolve(detected);
     }
-    if (window.renderMathInElement) {
-      window.renderMathInElement(node, {
-        delimiters: [
-          { left: "$$", right: "$$", display: true },
-          { left: "\\[", right: "\\]", display: true },
-          { left: "$", right: "$", display: false },
-          { left: "\\(", right: "\\)", display: false },
-        ],
+    if (!mathEnginePromise) {
+      mathEnginePromise = waitForMathEngine(1200)
+        .then(function (engine) {
+          return engine || loadFallbackMathJax();
+        })
+        .then(function (engine) {
+          activeMathEngine = engine;
+          return engine;
+        })
+        .catch(function () {
+          return null;
+        });
+    }
+    return mathEnginePromise;
+  }
+
+  function detectMathEngine() {
+    if (window.MathJax && typeof window.MathJax.typesetPromise === "function") {
+      return { type: "mathjax", api: window.MathJax };
+    }
+    if (typeof window.renderMathInElement === "function") {
+      return { type: "katex", api: window.renderMathInElement };
+    }
+    return null;
+  }
+
+  function waitForMathEngine(timeoutMs) {
+    return new Promise(function (resolve) {
+      var deadline = Date.now() + timeoutMs;
+      function check() {
+        var engine = detectMathEngine();
+        if (engine || Date.now() >= deadline) {
+          resolve(engine);
+          return;
+        }
+        window.setTimeout(check, 50);
+      }
+      check();
+    });
+  }
+
+  function loadFallbackMathJax() {
+    var url = String(config.mathJaxUrl || "").trim();
+    if (!url) return Promise.resolve(null);
+    var mathJaxConfig = window.MathJax && typeof window.MathJax === "object" ? window.MathJax : {};
+    mathJaxConfig.startup = Object.assign({}, mathJaxConfig.startup || {}, { typeset: false });
+    mathJaxConfig.tex = Object.assign(
+      {
+        inlineMath: [["\\(", "\\)"], ["$", "$"]],
+        displayMath: [["\\[", "\\]"], ["$$", "$$"]],
+        processEscapes: true,
+      },
+      mathJaxConfig.tex || {}
+    );
+    window.MathJax = mathJaxConfig;
+
+    return new Promise(function (resolve, reject) {
+      var loader = document.createElement("script");
+      loader.src = url;
+      loader.async = true;
+      loader.dataset.mkaiMathJax = "true";
+      loader.addEventListener("load", function () {
+        waitForMathEngine(3000).then(function (engine) {
+          if (engine) resolve(engine);
+          else reject(new Error("MathJax did not initialize"));
+        });
       });
-    }
+      loader.addEventListener("error", function () {
+        reject(new Error("MathJax failed to load"));
+      });
+      document.head.appendChild(loader);
+    });
   }
 
   function clearTypesetMath(node) {
-    if (!window.MathJax || !window.MathJax.typesetClear) return;
+    var mathJax = activeMathEngine && activeMathEngine.type === "mathjax" ? activeMathEngine.api : window.MathJax;
+    if (!mathJax || !mathJax.typesetClear) return;
     try {
-      window.MathJax.typesetClear([node]);
+      mathJax.typesetClear([node]);
     } catch (_error) {}
   }
 

@@ -169,11 +169,14 @@ window.mkdocsAiChat = {
   memoryTurns: 6,
   clearLabel: "Clear history",
   clearConfirm: "Clear all chat history?",
-  storageKey: "my-docs-ai-history"
+  storageKey: "my-docs-ai-history",
+  mathJaxUrl: "https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js"
 };
 ```
 
 Completed conversation turns are kept in `localStorage`, restored after reload, and reused as chat context. `memoryTurns` limits both stored and transmitted history; `storageKey` is optional and defaults to a key scoped by the configured endpoint.
+
+Formula rendering reuses the page's MathJax or KaTeX runtime when available. If neither exposes a callable runtime, the widget lazily loads `mathJaxUrl` only after an answer contains LaTeX; set it to an empty string to disable this fallback.
 
 Alternative: use script attributes if your theme allows custom script tags:
 
