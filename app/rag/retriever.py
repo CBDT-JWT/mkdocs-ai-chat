@@ -15,11 +15,13 @@ class Retriever:
         self.store = store
         self.top_k = top_k
 
-    def retrieve(self, question: str) -> list[tuple[DocumentChunk, float]]:
+    def retrieve(self, question: str, limit: int | None = None) -> list[tuple[DocumentChunk, float]]:
+        result_limit = max(1, min(limit or self.top_k, 8))
         query_vector = self.embedder.encode([question])[0]
-        vector_results = self.store.search(query_vector, max(self.top_k * 3, self.top_k))
-        lexical_results = self._lexical_search(question, max(self.top_k * 3, self.top_k))
-        return self._merge(vector_results, lexical_results)[: self.top_k]
+        candidate_limit = max(result_limit * 3, result_limit)
+        vector_results = self.store.search(query_vector, candidate_limit)
+        lexical_results = self._lexical_search(question, candidate_limit)
+        return self._merge(vector_results, lexical_results)[:result_limit]
 
     def _lexical_search(self, question: str, limit: int) -> list[tuple[DocumentChunk, float]]:
         expanded_question = _expand_query(question)

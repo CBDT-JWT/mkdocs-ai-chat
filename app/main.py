@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import json
 import logging
 import re
 import threading
 import time
 from collections import defaultdict, deque
+from collections.abc import Iterator
+from typing import Any
 from urllib.parse import quote, urlsplit, urlunsplit
 
-from flask import Flask, jsonify, request
+from flask import Flask, Response, jsonify, request, stream_with_context
 
 from app.config import Settings, settings
 from app.crawler.github_sync import GitHubSync
@@ -55,19 +58,30 @@ def create_app(config: Settings = settings) -> Flask:
         if not question:
             return jsonify({"error": "question is required"}), 400
         history = _sanitize_history(payload.get("history", []))
-        retrieval_query = state.rewrite_query(question, history)
-        results = state.retriever.retrieve(retrieval_query)
-        answer_results = _answer_results(results, retrieval_query)
-        chunks = [chunk for chunk, _score in answer_results]
-        if not chunks:
-            return jsonify({"answer": "知识库还没有可检索的文档。", "sources": []})
-        answer = state.llm.answer(question, chunks, history)
-        return jsonify(
-            {
-                "answer": answer,
-                "sources": _sources(answer_results, retrieval_query),
-            }
-        )
+        if _wants_event_stream():
+            def generate():
+                try:
+                    for event in state.chat_events(question, history):
+                        yield _sse(event)
+                except Exception:
+                    logging.exception("streaming chat failed")
+                    yield _sse({"type": "error", "message": "回答生成失败，请稍后重试。"})
+
+            return Response(
+                stream_with_context(generate()),
+                content_type="text/event-stream; charset=utf-8",
+                headers={
+                    "Cache-Control": "no-cache, no-transform",
+                    "X-Accel-Buffering": "no",
+                },
+            )
+
+        try:
+            answer, sources = state.chat_answer(question, history)
+        except Exception:
+            logging.exception("chat failed")
+            return jsonify({"error": "回答生成失败，请稍后重试。"}), 502
+        return jsonify({"answer": answer, "sources": sources})
 
     @app.route("/api/reindex", methods=["POST"])
     def reindex():
@@ -98,7 +112,12 @@ class AppState:
         self.store = VectorStore(config.index_dir)
         self.store.load()
         self.retriever = Retriever(self.embedder, self.store, config.top_k)
-        self.llm = DeepSeekClient(config.deepseek_api_key, config.deepseek_base_url, config.deepseek_model)
+        self.llm = DeepSeekClient(
+            config.deepseek_api_key,
+            config.deepseek_base_url,
+            config.deepseek_model,
+            thinking_enabled=config.deepseek_thinking,
+        )
         self.last_sync: str | None = None
         self._sync_lock = threading.Lock()
         self._requests: dict[str, deque[float]] = defaultdict(deque)
@@ -138,6 +157,45 @@ class AppState:
             return True
         bucket.append(now)
         return False
+
+    def chat_events(self, question: str, history: list[dict[str, str]]) -> Iterator[dict[str, Any]]:
+        yield from self.llm.agent_events(question, history, self.search_docs)
+
+    def chat_answer(
+        self,
+        question: str,
+        history: list[dict[str, str]],
+    ) -> tuple[str, list[dict[str, str]]]:
+        answer_parts: list[str] = []
+        sources: list[dict[str, str]] = []
+        for event in self.chat_events(question, history):
+            if event.get("type") == "delta":
+                answer_parts.append(str(event.get("content") or ""))
+            elif event.get("type") == "sources":
+                sources = list(event.get("sources") or [])
+        answer = "".join(answer_parts).strip()
+        if not answer:
+            raise RuntimeError("agent returned an empty answer")
+        return answer, sources
+
+    def search_docs(self, query: str, limit: int) -> dict[str, Any]:
+        results = _answer_results(self.retriever.retrieve(query, limit), query)
+        documents = [
+            {
+                "title": chunk.title,
+                "heading": chunk.heading,
+                "source": chunk.source,
+                "url": chunk.url,
+                "content": chunk.text[:1600],
+            }
+            for chunk, _score in results
+        ]
+        return {
+            "query": query,
+            "count": len(documents),
+            "results": documents,
+            "sources": _sources(results, query),
+        }
 
     def rewrite_query(self, question: str, history: list[dict[str, str]]) -> str:
         try:
@@ -225,6 +283,14 @@ def _sanitize_history(value) -> list[dict[str, str]]:
             continue
         history.append({"role": role, "content": content[:1000]})
     return history
+
+
+def _wants_event_stream() -> bool:
+    return "text/event-stream" in request.headers.get("Accept", "").lower()
+
+
+def _sse(event: dict[str, Any]) -> str:
+    return f"data: {json.dumps(event, ensure_ascii=False, separators=(',', ':'))}\n\n"
 
 
 app = create_app()

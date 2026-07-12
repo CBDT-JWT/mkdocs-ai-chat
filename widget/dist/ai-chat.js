@@ -75,15 +75,18 @@
       input.value = "";
       addMessage(messages, "user", question);
       submit.disabled = true;
-      ask(question, memory)
+      var streamView = createStreamingMessage(messages);
+      ask(question, memory, function (event) {
+        handleStreamEvent(streamView, event);
+      })
         .then(function (payload) {
           var answer = payload.answer || "No answer.";
-          addMessage(messages, "assistant", answer, payload.sources || []);
+          finishStreamingMessage(streamView, answer, payload.sources || []);
           remember(memory, "user", question, config.memoryTurns);
           remember(memory, "assistant", answer, config.memoryTurns);
         })
         .catch(function (error) {
-          addMessage(messages, "assistant", "Request failed: " + error.message);
+          failStreamingMessage(streamView, "Request failed: " + error.message);
         })
         .finally(function () {
           submit.disabled = false;
@@ -92,10 +95,10 @@
     });
   });
 
-  function ask(question, history) {
+  function ask(question, history, onEvent) {
     return fetch(config.endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
       body: JSON.stringify({ question: question, history: history }),
     }).then(function (response) {
       if (!response.ok) {
@@ -103,8 +106,72 @@
           throw new Error(text || response.statusText);
         });
       }
-      return response.json();
+      var contentType = response.headers.get("Content-Type") || "";
+      if (contentType.indexOf("text/event-stream") !== -1 && response.body && response.body.getReader) {
+        return readEventStream(response, onEvent);
+      }
+      return response.json().then(function (payload) {
+        onEvent({ type: "delta", content: payload.answer || "" });
+        onEvent({ type: "sources", sources: payload.sources || [] });
+        onEvent({ type: "done" });
+        return payload;
+      });
     });
+  }
+
+  function readEventStream(response, onEvent) {
+    var reader = response.body.getReader();
+    var decoder = new TextDecoder("utf-8");
+    var buffer = "";
+    var payload = { answer: "", sources: [] };
+
+    function consumeBlock(block) {
+      var data = block
+        .split("\n")
+        .filter(function (line) {
+          return line.indexOf("data:") === 0;
+        })
+        .map(function (line) {
+          return line.slice(5).trimStart();
+        })
+        .join("\n");
+      if (!data) return;
+      var event = JSON.parse(data);
+      if (event.type === "error") {
+        throw new Error(event.message || "Stream failed");
+      }
+      if (event.type === "delta") {
+        payload.answer += event.content || "";
+      } else if (event.type === "sources") {
+        payload.sources = event.sources || [];
+      }
+      onEvent(event);
+    }
+
+    function consumeBuffer(flush) {
+      buffer = buffer.replace(/\r\n/g, "\n");
+      var boundary = buffer.indexOf("\n\n");
+      while (boundary !== -1) {
+        consumeBlock(buffer.slice(0, boundary));
+        buffer = buffer.slice(boundary + 2);
+        boundary = buffer.indexOf("\n\n");
+      }
+      if (flush && buffer.trim()) {
+        consumeBlock(buffer);
+        buffer = "";
+      }
+    }
+
+    function read() {
+      return reader.read().then(function (result) {
+        buffer += decoder.decode(result.value || new Uint8Array(), { stream: !result.done });
+        consumeBuffer(result.done);
+        if (result.done) return payload;
+        return read();
+      });
+    }
+
+    return read();
   }
 
   function remember(memory, role, content, maxTurns) {
@@ -133,6 +200,118 @@
     container.appendChild(message);
     typesetMath(message);
     container.scrollTop = container.scrollHeight;
+  }
+
+  function createStreamingMessage(container) {
+    var message = el("div", "mkai-message");
+    message.dataset.role = "assistant";
+    message.dataset.streaming = "true";
+    var trace = el("div", "mkai-trace");
+    var answer = el("div", "mkai-answer");
+    var sourceBox = el("div", "mkai-sources");
+    sourceBox.hidden = true;
+    message.appendChild(trace);
+    message.appendChild(answer);
+    message.appendChild(sourceBox);
+    container.appendChild(message);
+    container.scrollTop = container.scrollHeight;
+    return {
+      message: message,
+      container: container,
+      trace: trace,
+      answer: answer,
+      sourceBox: sourceBox,
+      traceItems: Object.create(null),
+      genericTrace: null,
+      answerText: "",
+      sources: [],
+      renderQueued: false,
+    };
+  }
+
+  function handleStreamEvent(view, event) {
+    if (event.type === "thinking") {
+      setGenericTrace(view, event.text || "正在分析问题...");
+    } else if (event.type === "tool_call") {
+      clearGenericTrace(view);
+      var item = el("div", "mkai-trace-item", event.text || "正在检索文档...");
+      item.dataset.active = "true";
+      view.trace.appendChild(item);
+      view.traceItems[event.id] = item;
+    } else if (event.type === "tool_result") {
+      var resultItem = view.traceItems[event.id];
+      if (!resultItem) {
+        resultItem = el("div", "mkai-trace-item");
+        view.trace.appendChild(resultItem);
+        view.traceItems[event.id] = resultItem;
+      }
+      resultItem.textContent = event.text || "文档检索完成";
+      resultItem.dataset.active = "false";
+    } else if (event.type === "delta") {
+      clearGenericTrace(view);
+      view.answerText += event.content || "";
+      queueStreamRender(view);
+    } else if (event.type === "sources") {
+      view.sources = event.sources || [];
+    } else if (event.type === "done") {
+      clearGenericTrace(view);
+    }
+    view.container.scrollTop = view.container.scrollHeight;
+  }
+
+  function setGenericTrace(view, text) {
+    if (!view.genericTrace) {
+      view.genericTrace = el("div", "mkai-trace-item mkai-trace-generic");
+      view.trace.appendChild(view.genericTrace);
+    }
+    view.genericTrace.textContent = text;
+    view.genericTrace.dataset.active = "true";
+  }
+
+  function clearGenericTrace(view) {
+    if (!view.genericTrace) return;
+    view.genericTrace.remove();
+    view.genericTrace = null;
+  }
+
+  function queueStreamRender(view) {
+    if (view.renderQueued) return;
+    view.renderQueued = true;
+    window.requestAnimationFrame(function () {
+      view.renderQueued = false;
+      view.answer.innerHTML = renderMarkdown(view.answerText);
+      view.container.scrollTop = view.container.scrollHeight;
+    });
+  }
+
+  function finishStreamingMessage(view, answer, sources) {
+    clearGenericTrace(view);
+    view.answerText = answer;
+    view.answer.innerHTML = renderMarkdown(answer);
+    renderSources(view.sourceBox, sources);
+    view.message.dataset.streaming = "false";
+    typesetMath(view.answer);
+    view.container.scrollTop = view.container.scrollHeight;
+  }
+
+  function failStreamingMessage(view, text) {
+    clearGenericTrace(view);
+    view.answerText = text;
+    view.answer.innerHTML = renderMarkdown(text);
+    view.message.dataset.streaming = "false";
+    view.container.scrollTop = view.container.scrollHeight;
+  }
+
+  function renderSources(sourceBox, sources) {
+    sourceBox.innerHTML = "";
+    sourceBox.hidden = !sources || !sources.length;
+    (sources || []).forEach(function (source, index) {
+      var link = el("a", "", "[" + (index + 1) + "] " + (source.title || source.source || source.url));
+      link.href = source.url || "#";
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      sourceBox.appendChild(link);
+    });
   }
 
   function renderMarkdown(text) {

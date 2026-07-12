@@ -1,5 +1,8 @@
+import json
+
 from app.config import Settings
 from app.crawler.markdown_loader import DocumentChunk
+from app.llm.deepseek import DeepSeekClient
 from app.main import _sanitize_history, _sources, create_app
 
 
@@ -73,3 +76,66 @@ def test_sanitize_history_keeps_recent_user_assistant_messages():
 
     assert [item["role"] for item in history] == ["user", "assistant", "user"]
     assert len(history[-1]["content"]) == 1000
+
+
+def test_chat_endpoint_streams_agent_events(tmp_path, monkeypatch):
+    def fake_agent_events(_self, question, history, _search_docs):
+        assert question == "什么是 UART？"
+        assert history == [{"role": "user", "content": "前文"}]
+        yield {"type": "thinking", "text": "正在分析问题..."}
+        yield {"type": "tool_call", "id": "call-1", "query": "UART", "text": "正在检索文档：UART"}
+        yield {"type": "tool_result", "id": "call-1", "query": "UART", "count": 1, "text": "找到 1 条"}
+        yield {"type": "delta", "content": "UART 是串行通信接口。"}
+        yield {"type": "sources", "sources": [{"title": "UART", "url": "/uart", "source": "uart.md"}]}
+        yield {"type": "done"}
+
+    monkeypatch.setattr(DeepSeekClient, "agent_events", fake_agent_events)
+    app = create_app(
+        Settings(
+            data_dir=tmp_path / "data",
+            auto_sync_on_start=False,
+            deepseek_api_key="test",
+        )
+    )
+    response = app.test_client().post(
+        "/api/chat",
+        headers={"Accept": "text/event-stream"},
+        json={"question": "什么是 UART？", "history": [{"role": "user", "content": "前文"}]},
+    )
+
+    events = [
+        json.loads(block.removeprefix("data: "))
+        for block in response.get_data(as_text=True).strip().split("\n\n")
+    ]
+    assert response.status_code == 200
+    assert response.content_type == "text/event-stream; charset=utf-8"
+    assert response.headers["X-Accel-Buffering"] == "no"
+    assert [event["type"] for event in events] == [
+        "thinking",
+        "tool_call",
+        "tool_result",
+        "delta",
+        "sources",
+        "done",
+    ]
+
+
+def test_chat_endpoint_keeps_json_compatibility(tmp_path, monkeypatch):
+    def fake_agent_events(_self, _question, _history, _search_docs):
+        yield {"type": "delta", "content": "分段 "}
+        yield {"type": "delta", "content": "回答"}
+        yield {"type": "sources", "sources": []}
+        yield {"type": "done"}
+
+    monkeypatch.setattr(DeepSeekClient, "agent_events", fake_agent_events)
+    app = create_app(
+        Settings(
+            data_dir=tmp_path / "data",
+            auto_sync_on_start=False,
+            deepseek_api_key="test",
+        )
+    )
+    response = app.test_client().post("/api/chat", json={"question": "测试"})
+
+    assert response.status_code == 200
+    assert response.get_json() == {"answer": "分段 回答", "sources": []}

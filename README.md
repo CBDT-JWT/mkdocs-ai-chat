@@ -5,7 +5,8 @@ A simple AI chat widget for MkDocs and Zensical documentation sites.
 This project intentionally does not use Docker. It is a single repository with:
 
 - Flask backend
-- DeepSeek chat completion API
+- DeepSeek tool-calling agent with optional thinking mode
+- Server-sent event streaming for answers and retrieval status
 - GitHub Markdown repository sync
 - Markdown chunking and vector retrieval
 - FAISS when available, with a lightweight fallback for local development
@@ -40,6 +41,17 @@ curl -X POST http://127.0.0.1:8000/api/chat \
   -d '{"question":"UART实验怎么做？"}'
 ```
 
+Streaming chat:
+
+```bash
+curl -N -X POST http://127.0.0.1:8000/api/chat \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: text/event-stream' \
+  -d '{"question":"先查找笔记，再解释 UART 实验怎么做"}'
+```
+
+The agent decides whether to call `search_docs`. It can search several times with different queries, or answer directly when the notes are not needed. Streaming responses contain `thinking`, `tool_call`, `tool_result`, `delta`, `sources`, and `done` events.
+
 ## Configuration
 
 Edit `.env`:
@@ -52,6 +64,8 @@ GIT_USE_SYSTEM_PROXY=false
 SITE_BASE_URL=https://your-docs-site.com
 
 DEEPSEEK_API_KEY=sk-...
+DEEPSEEK_MODEL=deepseek-v4-flash
+DEEPSEEK_THINKING=true
 EMBEDDING_MODEL=hash
 SYNC_INTERVAL_HOURS=12
 CORS_ORIGINS=https://your-docs-site.com

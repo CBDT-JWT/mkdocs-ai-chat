@@ -23,7 +23,8 @@ class Settings:
 
     deepseek_api_key: str = os.getenv("DEEPSEEK_API_KEY", "")
     deepseek_base_url: str = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
-    deepseek_model: str = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+    deepseek_model: str = os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash")
+    deepseek_thinking: bool = _bool_env("DEEPSEEK_THINKING", True)
 
     embedding_model: str = os.getenv("EMBEDDING_MODEL", "hash")
     top_k: int = int(os.getenv("TOP_K", "5"))
