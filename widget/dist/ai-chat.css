@@ -6,6 +6,9 @@
   --mkai-primary: #2563eb;
   --mkai-primary-text: #ffffff;
   --mkai-shadow: 0 20px 45px rgba(15, 23, 42, 0.18);
+  --mkai-motion-fast: 160ms;
+  --mkai-motion-base: 260ms;
+  --mkai-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .mkai-button {
@@ -22,6 +25,33 @@
   box-shadow: var(--mkai-shadow);
   cursor: pointer;
   font: 700 14px/1 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  transform: translateZ(0);
+  transition:
+    transform var(--mkai-motion-fast) var(--mkai-ease-out),
+    box-shadow var(--mkai-motion-fast) ease,
+    filter var(--mkai-motion-fast) ease;
+  will-change: transform;
+}
+
+.mkai-button:hover {
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 24px 50px rgba(15, 23, 42, 0.24);
+}
+
+.mkai-button:active {
+  transform: translateY(0) scale(0.94);
+}
+
+.mkai-button:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.28);
+  outline-offset: 4px;
+}
+
+.mkai-button[data-open="true"] {
+  box-shadow:
+    0 0 0 5px rgba(37, 99, 235, 0.14),
+    0 22px 48px rgba(15, 23, 42, 0.24);
+  animation: mkai-button-open 360ms var(--mkai-ease-out);
 }
 
 .mkai-button-has-icon {
@@ -35,6 +65,11 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  transition: transform var(--mkai-motion-base) var(--mkai-ease-out);
+}
+
+.mkai-button[data-open="true"] .mkai-button-icon {
+  transform: scale(1.08);
 }
 
 .mkai-selection-action {
@@ -53,6 +88,10 @@
   white-space: nowrap;
 }
 
+.mkai-selection-action:not([hidden]) {
+  animation: mkai-selection-action-in 220ms var(--mkai-ease-out) both;
+}
+
 .mkai-selection-action[hidden] {
   display: none;
 }
@@ -62,7 +101,8 @@
   right: 24px;
   bottom: 92px;
   z-index: 2147483000;
-  display: none;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
   width: min(380px, calc(100vw - 32px));
   height: min(560px, calc(100vh - 128px));
   background: var(--mkai-bg);
@@ -72,11 +112,24 @@
   box-shadow: var(--mkai-shadow);
   overflow: hidden;
   font: 14px/1.5 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(18px) scale(0.96);
+  transform-origin: calc(100% - 28px) 100%;
+  visibility: hidden;
+  transition:
+    opacity 180ms ease,
+    transform var(--mkai-motion-base) var(--mkai-ease-out),
+    visibility 0s linear var(--mkai-motion-base);
+  will-change: transform, opacity;
 }
 
 .mkai-panel[data-open="true"] {
-  display: grid;
-  grid-template-rows: auto 1fr auto;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+  visibility: visible;
+  transition-delay: 0s;
 }
 
 .mkai-header {
@@ -113,6 +166,10 @@
   cursor: pointer;
   font: 500 12px/1.2 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   white-space: nowrap;
+  transition:
+    background var(--mkai-motion-fast) ease,
+    color var(--mkai-motion-fast) ease,
+    transform var(--mkai-motion-fast) var(--mkai-ease-out);
 }
 
 .mkai-clear:hover,
@@ -135,6 +192,23 @@
   cursor: pointer;
   font-size: 22px;
   line-height: 1;
+  transition:
+    background var(--mkai-motion-fast) ease,
+    color var(--mkai-motion-fast) ease,
+    transform var(--mkai-motion-fast) var(--mkai-ease-out);
+}
+
+.mkai-close:hover,
+.mkai-close:focus-visible {
+  border-radius: 4px;
+  background: #f3f4f6;
+  color: var(--mkai-text);
+  transform: rotate(6deg) scale(1.06);
+}
+
+.mkai-close:active,
+.mkai-clear:active {
+  transform: scale(0.94);
 }
 
 .mkai-messages {
@@ -144,19 +218,24 @@
 }
 
 .mkai-message {
+  --mkai-message-enter-x: -10px;
   margin: 0 0 12px;
   padding: 10px 12px;
   border-radius: 8px;
   background: #ffffff;
   border: 1px solid #e5e7eb;
   white-space: normal;
+  animation: mkai-message-in 300ms var(--mkai-ease-out) both;
+  transform-origin: left bottom;
 }
 
 .mkai-message[data-role="user"] {
+  --mkai-message-enter-x: 10px;
   margin-left: 34px;
   background: #eff6ff;
   border-color: #bfdbfe;
   white-space: pre-wrap;
+  transform-origin: right bottom;
 }
 
 .mkai-message[data-role="assistant"] {
@@ -179,6 +258,7 @@
 
 .mkai-trace-item {
   overflow-wrap: anywhere;
+  animation: mkai-trace-in 200ms var(--mkai-ease-out) both;
 }
 
 .mkai-trace-item[data-active="true"]::after {
@@ -220,6 +300,73 @@
 @keyframes mkai-cursor {
   50% {
     opacity: 0;
+  }
+}
+
+@keyframes mkai-button-open {
+  0% {
+    transform: scale(0.94);
+  }
+  55% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes mkai-message-in {
+  from {
+    opacity: 0;
+    transform: translate3d(var(--mkai-message-enter-x), 8px, 0) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes mkai-trace-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes mkai-selection-action-in {
+  from {
+    opacity: 0;
+    transform: translateY(7px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes mkai-tooltip-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes mkai-source-in {
+  from {
+    opacity: 0;
+    transform: translateX(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
@@ -349,6 +496,19 @@
   color: var(--mkai-primary);
   text-decoration: none;
   font-size: 13px;
+  animation: mkai-source-in 220ms var(--mkai-ease-out) both;
+}
+
+.mkai-sources a:nth-child(2) {
+  animation-delay: 45ms;
+}
+
+.mkai-sources a:nth-child(3) {
+  animation-delay: 90ms;
+}
+
+.mkai-sources a:nth-child(n + 4) {
+  animation-delay: 120ms;
 }
 
 .mkai-source-tooltip {
@@ -367,6 +527,11 @@
   pointer-events: none;
   font: 12px/1.55 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   overflow-wrap: anywhere;
+  transform-origin: left bottom;
+}
+
+.mkai-source-tooltip:not([hidden]) {
+  animation: mkai-tooltip-in 180ms var(--mkai-ease-out) both;
 }
 
 .mkai-source-tooltip[hidden] {
@@ -476,6 +641,10 @@
   display: none;
 }
 
+.mkai-selection-preview:not([hidden]) {
+  animation: mkai-tooltip-in 220ms var(--mkai-ease-out) both;
+}
+
 .mkai-selection-preview-header {
   display: flex;
   align-items: center;
@@ -502,6 +671,9 @@
   cursor: pointer;
   font-size: 18px;
   line-height: 1;
+  transition:
+    background var(--mkai-motion-fast) ease,
+    transform var(--mkai-motion-fast) var(--mkai-ease-out);
 }
 
 .mkai-selection-preview-remove:hover,
@@ -528,6 +700,15 @@
   padding: 9px 10px;
   color: var(--mkai-text);
   font: inherit;
+  outline: none;
+  transition:
+    border-color var(--mkai-motion-fast) ease,
+    box-shadow var(--mkai-motion-fast) ease;
+}
+
+.mkai-input:focus {
+  border-color: var(--mkai-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
 }
 
 .mkai-submit {
@@ -539,11 +720,35 @@
   color: var(--mkai-primary-text);
   cursor: pointer;
   font-size: 18px;
+  transition:
+    transform var(--mkai-motion-fast) var(--mkai-ease-out),
+    filter var(--mkai-motion-fast) ease,
+    box-shadow var(--mkai-motion-fast) ease;
+}
+
+.mkai-submit:hover:not(:disabled) {
+  filter: brightness(1.07);
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.24);
+  transform: translateX(2px);
+}
+
+.mkai-submit:active:not(:disabled) {
+  transform: translateX(2px) scale(0.92);
 }
 
 .mkai-submit:disabled {
   cursor: wait;
   opacity: 0.55;
+  animation: mkai-submit-working 900ms ease-in-out infinite alternate;
+}
+
+@keyframes mkai-submit-working {
+  from {
+    transform: scale(0.96);
+  }
+  to {
+    transform: scale(1.02);
+  }
 }
 
 @media (max-width: 767px) {
@@ -559,5 +764,26 @@
     bottom: 84px;
     width: calc(100vw - 24px);
     height: min(560px, calc(100vh - 112px));
+    transform-origin: 28px 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mkai-button,
+  .mkai-button *,
+  .mkai-panel,
+  .mkai-panel *,
+  .mkai-selection-action,
+  .mkai-source-tooltip,
+  .mkai-source-tooltip * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-delay: 0s !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .mkai-panel,
+  .mkai-panel[data-open="true"] {
+    transform: none;
   }
 }

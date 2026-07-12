@@ -1,0 +1,22 @@
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_published_widget_matches_source_assets():
+    for name in ("ai-chat.js", "ai-chat.css"):
+        assert (ROOT / "widget" / "src" / name).read_bytes() == (
+            ROOT / "widget" / "dist" / name
+        ).read_bytes()
+
+
+def test_widget_motion_keeps_accessibility_fallbacks():
+    css = (ROOT / "widget" / "src" / "ai-chat.css").read_text()
+    javascript = (ROOT / "widget" / "src" / "ai-chat.js").read_text()
+
+    assert '.mkai-panel[data-open="true"]' in css
+    assert "@keyframes mkai-message-in" in css
+    assert "@media (prefers-reduced-motion: reduce)" in css
+    assert 'button.setAttribute("aria-expanded", state)' in javascript
+    assert 'panel.setAttribute("aria-hidden", String(!isOpen))' in javascript

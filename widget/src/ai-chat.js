@@ -48,6 +48,9 @@
     var button = el("button", "mkai-button");
     button.type = "button";
     button.setAttribute("aria-label", "Open AI chat");
+    button.setAttribute("aria-controls", "mkai-chat-panel");
+    button.setAttribute("aria-expanded", "false");
+    button.dataset.open = "false";
     setButtonIcon(button, config);
 
     var selectionAction = el("button", "mkai-selection-action", config.selectionActionLabel || "Ask AI");
@@ -61,6 +64,11 @@
     sourceTooltipNode.hidden = true;
 
     var panel = el("section", "mkai-panel");
+    panel.id = "mkai-chat-panel";
+    panel.dataset.open = "false";
+    panel.setAttribute("role", "dialog");
+    panel.setAttribute("aria-modal", "false");
+    panel.setAttribute("aria-hidden", "true");
     panel.setAttribute("aria-label", config.title);
     panel.innerHTML =
       '<div class="mkai-header"><span class="mkai-header-title"></span><div class="mkai-header-actions"><button class="mkai-clear" type="button"></button><button class="mkai-close" type="button" aria-label="Close">×</button></div></div>' +
@@ -89,6 +97,29 @@
     var storageKey = conversationStorageKey(config);
     var memory = loadConversation(storageKey, config.memoryTurns);
 
+    function focusWithoutScroll(node) {
+      try {
+        node.focus({ preventScroll: true });
+      } catch (_error) {
+        node.focus();
+      }
+    }
+
+    function setPanelOpen(open, focusInput) {
+      var isOpen = Boolean(open);
+      var state = String(isOpen);
+      panel.dataset.open = state;
+      panel.setAttribute("aria-hidden", String(!isOpen));
+      button.dataset.open = state;
+      button.setAttribute("aria-expanded", state);
+      button.setAttribute("aria-label", isOpen ? "Close AI chat" : "Open AI chat");
+      if (isOpen && focusInput !== false) {
+        window.requestAnimationFrame(function () {
+          if (panel.dataset.open === "true") focusWithoutScroll(input);
+        });
+      }
+    }
+
     document.body.appendChild(button);
     document.body.appendChild(panel);
     document.body.appendChild(selectionAction);
@@ -105,12 +136,19 @@
 
     button.addEventListener("click", function () {
       var open = panel.getAttribute("data-open") === "true";
-      panel.setAttribute("data-open", open ? "false" : "true");
-      if (!open) input.focus();
+      setPanelOpen(!open);
     });
     close.addEventListener("click", function () {
       hideSourceTooltip();
-      panel.setAttribute("data-open", "false");
+      setPanelOpen(false, false);
+      focusWithoutScroll(button);
+    });
+    panel.addEventListener("keydown", function (event) {
+      if (event.key !== "Escape" || panel.dataset.open !== "true") return;
+      event.preventDefault();
+      hideSourceTooltip();
+      setPanelOpen(false, false);
+      focusWithoutScroll(button);
     });
     removeSelectionButton.addEventListener("click", function () {
       setQuotedSelection("");
@@ -118,8 +156,7 @@
     });
     setupSelectionAsk(selectionAction, [panel, button], function (text) {
       setQuotedSelection(text);
-      panel.setAttribute("data-open", "true");
-      input.focus();
+      setPanelOpen(true);
     });
     clearHistoryButton.addEventListener("click", function () {
       if (clearHistoryButton.disabled) return;

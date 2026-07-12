@@ -8,6 +8,7 @@ This project intentionally does not use Docker. It is a single repository with:
 - DeepSeek tool-calling agent with optional thinking mode
 - Server-sent event streaming for answers and retrieval status
 - Browser-local conversation history with a clear-history control
+- Reduced-motion-aware panel, message, quote, and source-preview animations
 - GitHub Markdown repository sync
 - Markdown chunking and vector retrieval
 - FAISS when available, with a lightweight fallback for local development
