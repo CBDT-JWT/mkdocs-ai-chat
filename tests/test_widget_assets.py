@@ -30,3 +30,15 @@ def test_clear_history_can_cancel_an_active_request():
     assert "request.controller.abort()" in javascript
     assert "if (request.cancelled) return" in javascript
     assert "clearHistoryButton.disabled = true" not in javascript
+
+
+def test_mobile_layout_tracks_the_visual_viewport():
+    css = (ROOT / "widget" / "src" / "ai-chat.css").read_text()
+    javascript = (ROOT / "widget" / "src" / "ai-chat.js").read_text()
+
+    assert "--mkai-mobile-viewport-height" in css
+    assert "100dvh" in css
+    assert "font-size: 16px" in css
+    assert "mkai-mobile-chat-open" in css
+    assert "window.visualViewport" in javascript
+    assert "function syncInputHeight()" in javascript

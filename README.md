@@ -9,6 +9,7 @@ This project intentionally does not use Docker. It is a single repository with:
 - Server-sent event streaming for answers and retrieval status
 - Browser-local conversation history with a clear-history control that cancels active responses
 - Reduced-motion-aware panel, message, quote, and source-preview animations
+- Mobile full-screen chat with visual-viewport, keyboard, and safe-area handling
 - GitHub Markdown repository sync
 - Markdown chunking and vector retrieval
 - FAISS when available, with a lightweight fallback for local development

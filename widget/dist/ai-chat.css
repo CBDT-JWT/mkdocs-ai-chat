@@ -11,6 +11,16 @@
   --mkai-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+.mkai-button,
+.mkai-selection-action,
+.mkai-clear,
+.mkai-close,
+.mkai-selection-preview-remove,
+.mkai-submit {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
 .mkai-button {
   position: fixed;
   right: 24px;
@@ -28,6 +38,7 @@
   transform: translateZ(0);
   transition:
     transform var(--mkai-motion-fast) var(--mkai-ease-out),
+    opacity var(--mkai-motion-fast) ease,
     box-shadow var(--mkai-motion-fast) ease,
     filter var(--mkai-motion-fast) ease;
   will-change: transform;
@@ -215,6 +226,8 @@
   overflow: auto;
   padding: 14px;
   background: #f9fafb;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .mkai-message {
@@ -712,6 +725,7 @@
 }
 
 .mkai-submit {
+  align-self: end;
   width: 44px;
   height: 40px;
   border: 0;
@@ -752,19 +766,129 @@
 }
 
 @media (max-width: 767px) {
+  html.mkai-mobile-chat-open,
+  html.mkai-mobile-chat-open body {
+    overflow: hidden !important;
+    overscroll-behavior: none;
+  }
+
   .mkai-button {
     right: auto;
-    left: 20px;
-    bottom: 20px;
+    left: max(16px, env(safe-area-inset-left));
+    bottom: max(16px, env(safe-area-inset-bottom));
+  }
+
+  .mkai-button[data-open="true"] {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(12px) scale(0.86);
+    animation: none;
   }
 
   .mkai-panel {
     right: auto;
-    left: 12px;
-    bottom: 84px;
-    width: calc(100vw - 24px);
-    height: min(560px, calc(100vh - 112px));
-    transform-origin: 28px 100%;
+    left: 0;
+    top: var(--mkai-mobile-viewport-top, 0px);
+    bottom: auto;
+    width: 100%;
+    height: var(--mkai-mobile-viewport-height, 100vh);
+    height: var(--mkai-mobile-viewport-height, 100dvh);
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    font-size: 15px;
+    line-height: 1.55;
+    transform: translateY(24px) scale(0.99);
+    transform-origin: 50% 100%;
+  }
+
+  .mkai-panel[data-open="true"] {
+    transform: translateY(0) scale(1);
+  }
+
+  .mkai-header {
+    padding: calc(6px + env(safe-area-inset-top)) 8px 6px 14px;
+  }
+
+  .mkai-header-title {
+    font-size: 15px;
+  }
+
+  .mkai-clear {
+    min-height: 44px;
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  .mkai-close {
+    width: 44px;
+    height: 44px;
+  }
+
+  .mkai-messages {
+    min-height: 0;
+    padding: 12px;
+    scroll-padding: 12px;
+  }
+
+  .mkai-message[data-role="user"] {
+    margin-left: 24px;
+  }
+
+  .mkai-message[data-role="assistant"] {
+    margin-right: 8px;
+  }
+
+  .mkai-sources a {
+    display: block;
+    min-height: 32px;
+    padding: 5px 0;
+    box-sizing: border-box;
+    font-size: 14px;
+  }
+
+  .mkai-form {
+    align-items: end;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  }
+
+  .mkai-selection-preview {
+    padding: 8px 10px 10px;
+  }
+
+  .mkai-selection-preview-remove {
+    width: 44px;
+    height: 44px;
+    margin: -8px -8px -4px 0;
+  }
+
+  .mkai-selection-preview-text {
+    max-height: 96px;
+    font-size: 13px;
+  }
+
+  .mkai-input {
+    min-height: 44px;
+    max-height: 120px;
+    box-sizing: border-box;
+    padding: 10px 11px;
+    resize: none;
+    overflow-y: hidden;
+    font-size: 16px;
+    line-height: 1.4;
+  }
+
+  .mkai-submit {
+    width: 48px;
+    height: 44px;
+    font-size: 20px;
+  }
+
+  .mkai-selection-action {
+    min-height: 44px;
+    padding: 10px 12px;
+    font-size: 14px;
   }
 }
 

@@ -97,6 +97,46 @@
     var storageKey = conversationStorageKey(config);
     var memory = loadConversation(storageKey, config.memoryTurns);
     var activeRequest = null;
+    var rootElement = document.documentElement;
+    var mobileLayoutQuery = window.matchMedia("(max-width: 767px)");
+
+    function isMobileLayout() {
+      return mobileLayoutQuery.matches;
+    }
+
+    function syncMobileViewport() {
+      if (!isMobileLayout()) return;
+      var viewport = window.visualViewport;
+      var height = viewport ? viewport.height : window.innerHeight;
+      var top = viewport ? viewport.offsetTop : 0;
+      rootElement.style.setProperty("--mkai-mobile-viewport-height", Math.max(Math.round(height), 1) + "px");
+      rootElement.style.setProperty("--mkai-mobile-viewport-top", Math.max(Math.round(top), 0) + "px");
+    }
+
+    function syncInputHeight() {
+      if (!isMobileLayout()) {
+        input.style.removeProperty("height");
+        input.style.removeProperty("overflow-y");
+        return;
+      }
+      input.style.height = "auto";
+      var maxHeight = parseFloat(window.getComputedStyle(input).maxHeight) || 120;
+      var targetHeight = Math.max(44, Math.min(input.scrollHeight, maxHeight));
+      input.style.height = Math.ceil(targetHeight) + "px";
+      input.style.overflowY = input.scrollHeight > maxHeight ? "auto" : "hidden";
+    }
+
+    function syncMobileLayout() {
+      var mobile = isMobileLayout();
+      rootElement.classList.toggle("mkai-mobile-chat-open", mobile && panel.dataset.open === "true");
+      if (!mobile) {
+        rootElement.style.removeProperty("--mkai-mobile-viewport-height");
+        rootElement.style.removeProperty("--mkai-mobile-viewport-top");
+      } else {
+        syncMobileViewport();
+      }
+      syncInputHeight();
+    }
 
     function focusWithoutScroll(node) {
       try {
@@ -114,6 +154,7 @@
       button.dataset.open = state;
       button.setAttribute("aria-expanded", state);
       button.setAttribute("aria-label", isOpen ? "Close AI chat" : "Open AI chat");
+      syncMobileLayout();
       if (isOpen && focusInput !== false) {
         window.requestAnimationFrame(function () {
           if (panel.dataset.open === "true") focusWithoutScroll(input);
@@ -136,6 +177,18 @@
     document.body.appendChild(sourceTooltipNode);
     window.addEventListener("scroll", hideSourceTooltip, { passive: true, capture: true });
     window.addEventListener("resize", hideSourceTooltip, { passive: true });
+    window.addEventListener("resize", syncMobileLayout, { passive: true });
+    input.addEventListener("input", syncInputHeight);
+    if (mobileLayoutQuery.addEventListener) {
+      mobileLayoutQuery.addEventListener("change", syncMobileLayout);
+    } else if (mobileLayoutQuery.addListener) {
+      mobileLayoutQuery.addListener(syncMobileLayout);
+    }
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", syncMobileViewport, { passive: true });
+      window.visualViewport.addEventListener("scroll", syncMobileViewport, { passive: true });
+    }
+    syncMobileLayout();
     if (memory.length) {
       memory.forEach(function (item) {
         addMessage(messages, item.role, item.content, item.sources || []);
@@ -197,6 +250,7 @@
       }
       var submittedQuestion = formatQuestionWithQuote(quotedSelection, question);
       input.value = "";
+      syncInputHeight();
       setQuotedSelection("");
       addMessage(messages, "user", submittedQuestion);
       submit.disabled = true;
