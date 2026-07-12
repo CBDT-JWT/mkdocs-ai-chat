@@ -30,7 +30,7 @@ def test_sources_filter_low_scores_and_add_highlight():
                 title="信号与系统",
                 heading="基本概念",
                 source="signals-and-systems.md",
-                url="https://note.weitao-jiang.cn/signals-and-systems",
+                url="https://note.weitao-jiang.cn/signals-and-systems#_2",
             ),
             7.0,
         ),
@@ -41,7 +41,7 @@ def test_sources_filter_low_scores_and_add_highlight():
                 title="通信",
                 heading="抽样定理",
                 source="communication-and-networks.md",
-                url="https://note.weitao-jiang.cn/communication-and-networks",
+                url="https://note.weitao-jiang.cn/communication-and-networks#_22",
             ),
             6.0,
         ),
@@ -72,7 +72,7 @@ def test_sources_filter_low_scores_and_add_highlight():
     sources = _sources(results, "什么是Sa函数？")
 
     assert [source["title"] for source in sources] == ["基本概念", "抽样定理"]
-    assert sources[0]["url"].endswith("?h=Sa")
+    assert sources[0]["url"] == "https://note.weitao-jiang.cn/signals-and-systems?h=Sa#_2"
 
 
 def test_sanitize_history_keeps_recent_user_assistant_messages():

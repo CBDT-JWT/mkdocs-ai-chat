@@ -219,12 +219,14 @@ Response:
   "sources": [
     {
       "title": "RX",
-      "url": "https://your-docs-site.com/fpga/uart",
+      "url": "https://your-docs-site.com/fpga/uart#rx",
       "source": "fpga/uart.md"
     }
   ]
 }
 ```
+
+Source URLs include the indexed Markdown heading fragment. Clicking a source opens the exact documentation section while preserving the optional `?h=` text highlight query.
 
 ### `POST /api/reindex`
 
