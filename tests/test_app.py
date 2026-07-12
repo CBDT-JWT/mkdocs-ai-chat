@@ -3,7 +3,7 @@ import json
 from app.config import Settings
 from app.crawler.markdown_loader import DocumentChunk
 from app.llm.deepseek import DeepSeekClient
-from app.main import _sanitize_history, _sources, create_app
+from app.main import _sanitize_history, _source_preview, _sources, create_app
 
 
 def test_health_endpoint(tmp_path, monkeypatch):
@@ -73,6 +73,24 @@ def test_sources_filter_low_scores_and_add_highlight():
 
     assert [source["title"] for source in sources] == ["基本概念", "抽样定理"]
     assert sources[0]["url"] == "https://note.weitao-jiang.cn/signals-and-systems?h=Sa#_2"
+    assert sources[0]["preview"] == "Sa信号定义为 sin t over t。"
+
+
+def test_source_preview_centers_long_text_on_question_term():
+    chunk = DocumentChunk(
+        id="preview",
+        text=("无关前文。" * 80) + "目标关键词附近的章节内容。" + ("无关后文。" * 80),
+        title="测试文档",
+        heading="长章节",
+        source="test.md",
+        url="https://docs.example.com/test#section",
+    )
+
+    preview = _source_preview(chunk, "目标关键词", limit=100)
+
+    assert preview.startswith("...")
+    assert "目标关键词附近的章节内容" in preview
+    assert preview.endswith("...")
 
 
 def test_sanitize_history_keeps_recent_user_assistant_messages():

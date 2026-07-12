@@ -30,6 +30,7 @@
   var mathTypesetQueue = Promise.resolve();
   var mathEnginePromise = null;
   var activeMathEngine = null;
+  var sourceTooltipNode = null;
 
   function ready(fn) {
     if (document.readyState === "loading") {
@@ -51,6 +52,11 @@
     selectionAction.type = "button";
     selectionAction.hidden = true;
     selectionAction.setAttribute("aria-label", config.selectionActionLabel || "Ask AI");
+
+    sourceTooltipNode = el("div", "mkai-source-tooltip");
+    sourceTooltipNode.id = "mkai-source-tooltip";
+    sourceTooltipNode.setAttribute("role", "tooltip");
+    sourceTooltipNode.hidden = true;
 
     var panel = el("section", "mkai-panel");
     panel.setAttribute("aria-label", config.title);
@@ -84,6 +90,9 @@
     document.body.appendChild(button);
     document.body.appendChild(panel);
     document.body.appendChild(selectionAction);
+    document.body.appendChild(sourceTooltipNode);
+    window.addEventListener("scroll", hideSourceTooltip, { passive: true, capture: true });
+    window.addEventListener("resize", hideSourceTooltip, { passive: true });
     if (memory.length) {
       memory.forEach(function (item) {
         addMessage(messages, item.role, item.content, item.sources || []);
@@ -98,6 +107,7 @@
       if (!open) input.focus();
     });
     close.addEventListener("click", function () {
+      hideSourceTooltip();
       panel.setAttribute("data-open", "false");
     });
     removeSelectionButton.addEventListener("click", function () {
@@ -114,6 +124,7 @@
       if (config.clearConfirm && !window.confirm(String(config.clearConfirm))) return;
       clearStoredConversation(storageKey);
       memory.length = 0;
+      hideSourceTooltip();
       clearTypesetMath(messages);
       messages.innerHTML = "";
       addMessage(messages, "assistant", config.welcome);
@@ -411,6 +422,7 @@
         title: String((source && source.title) || "").slice(0, 300),
         source: String((source && source.source) || "").slice(0, 500),
         url: String((source && source.url) || "").slice(0, 2000),
+        preview: String((source && source.preview) || "").slice(0, 1000),
       };
     });
   }
@@ -438,11 +450,7 @@
     if (sources && sources.length) {
       var sourceBox = el("div", "mkai-sources");
       sources.forEach(function (source, index) {
-        var link = el("a", "", "[" + (index + 1) + "] " + (source.title || source.source || source.url));
-        link.href = source.url || "#";
-        link.target = "_blank";
-        link.rel = "noopener noreferrer";
-        sourceBox.appendChild(link);
+        appendSourceLink(sourceBox, source, index);
       });
       message.appendChild(sourceBox);
     }
@@ -590,15 +598,59 @@
   }
 
   function renderSources(sourceBox, sources) {
+    hideSourceTooltip();
     sourceBox.innerHTML = "";
     sourceBox.hidden = !sources || !sources.length;
     (sources || []).forEach(function (source, index) {
-      var link = el("a", "", "[" + (index + 1) + "] " + (source.title || source.source || source.url));
-      link.href = source.url || "#";
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-      sourceBox.appendChild(link);
+      appendSourceLink(sourceBox, source, index);
     });
+  }
+
+  function appendSourceLink(sourceBox, source, index) {
+    var link = el("a", "", "[" + (index + 1) + "] " + (source.title || source.source || source.url));
+    link.href = source.url || "#";
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    if (source.preview) {
+      link.setAttribute("aria-describedby", "mkai-source-tooltip");
+      link.addEventListener("mouseenter", function () {
+        showSourceTooltip(link, source);
+      });
+      link.addEventListener("mouseleave", hideSourceTooltip);
+      link.addEventListener("focus", function () {
+        showSourceTooltip(link, source);
+      });
+      link.addEventListener("blur", hideSourceTooltip);
+      link.addEventListener("click", hideSourceTooltip);
+    }
+    sourceBox.appendChild(link);
+  }
+
+  function showSourceTooltip(link, source) {
+    if (!sourceTooltipNode || !source.preview || !link.isConnected) return;
+    sourceTooltipNode.innerHTML = "";
+    sourceTooltipNode.appendChild(el("div", "mkai-source-tooltip-title", source.title || source.source || "Source"));
+    sourceTooltipNode.appendChild(el("div", "mkai-source-tooltip-preview", String(source.preview).slice(0, 1000)));
+    sourceTooltipNode.style.left = "0px";
+    sourceTooltipNode.style.top = "0px";
+    sourceTooltipNode.style.visibility = "hidden";
+    sourceTooltipNode.hidden = false;
+
+    var gap = 8;
+    var rect = link.getBoundingClientRect();
+    var left = Math.max(gap, Math.min(rect.left, window.innerWidth - sourceTooltipNode.offsetWidth - gap));
+    var top = rect.top - sourceTooltipNode.offsetHeight - gap;
+    if (top < gap) top = rect.bottom + gap;
+    top = Math.max(gap, Math.min(top, window.innerHeight - sourceTooltipNode.offsetHeight - gap));
+    sourceTooltipNode.style.left = Math.round(left) + "px";
+    sourceTooltipNode.style.top = Math.round(top) + "px";
+    sourceTooltipNode.style.visibility = "visible";
+  }
+
+  function hideSourceTooltip() {
+    if (!sourceTooltipNode) return;
+    sourceTooltipNode.hidden = true;
+    sourceTooltipNode.style.visibility = "hidden";
   }
 
   function renderMarkdown(text) {

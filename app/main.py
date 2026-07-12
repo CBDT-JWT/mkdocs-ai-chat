@@ -228,6 +228,7 @@ def _sources(results: list[tuple], question: str) -> list[dict[str, str]]:
                 "title": chunk.heading or chunk.title,
                 "url": _source_url_with_highlight(chunk.url, question, chunk),
                 "source": chunk.source,
+                "preview": _source_preview(chunk, question),
             }
         )
         if len(sources) >= 3:
@@ -259,6 +260,29 @@ def _highlight_term(question: str, chunk) -> str:
         if token in haystack:
             return token
     return chunk.heading or ""
+
+
+def _source_preview(chunk, question: str, limit: int = 320) -> str:
+    text = str(chunk.text or "")
+    text = re.sub(r"```[^\n]*\n?", " ", text)
+    text = text.replace("```", " ")
+    text = re.sub(r"!\[([^\]]*)\]\([^)]+\)", r"\1", text)
+    text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = re.sub(r"(?m)^\s*(?:[-*+]\s+|\d+[.)]\s+)", "", text)
+    text = text.replace("**", "").replace("__", "").replace("~~", "").replace("`", "")
+    text = re.sub(r"\s+", " ", text).strip()
+    if len(text) <= limit:
+        return text
+
+    term = _highlight_term(question, chunk)
+    index = text.lower().find(term.lower()) if term else -1
+    start = max(index - limit // 3, 0) if index >= 0 else 0
+    end = min(start + limit, len(text))
+    if end == len(text):
+        start = max(end - limit, 0)
+    preview = text[start:end].strip()
+    return ("..." if start else "") + preview + ("..." if end < len(text) else "")
 
 
 def _source_matches_question(chunk, question: str) -> bool:

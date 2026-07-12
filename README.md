@@ -220,13 +220,14 @@ Response:
     {
       "title": "RX",
       "url": "https://your-docs-site.com/fpga/uart#rx",
-      "source": "fpga/uart.md"
+      "source": "fpga/uart.md",
+      "preview": "The RX state machine samples the UART input..."
     }
   ]
 }
 ```
 
-Source URLs include the indexed Markdown heading fragment. Clicking a source opens the exact documentation section while preserving the optional `?h=` text highlight query.
+Source URLs include the indexed Markdown heading fragment. Clicking a source opens the exact documentation section while preserving the optional `?h=` text highlight query. The widget shows each source's question-centered `preview` in a tooltip on hover or keyboard focus.
 
 ### `POST /api/reindex`
 
