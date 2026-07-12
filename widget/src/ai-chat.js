@@ -96,6 +96,7 @@
     clearHistoryButton.title = config.clearLabel || "Clear history";
     var storageKey = conversationStorageKey(config);
     var memory = loadConversation(storageKey, config.memoryTurns);
+    var activeRequest = null;
 
     function focusWithoutScroll(node) {
       try {
@@ -118,6 +119,15 @@
           if (panel.dataset.open === "true") focusWithoutScroll(input);
         });
       }
+    }
+
+    function cancelActiveRequest() {
+      var request = activeRequest;
+      if (!request) return;
+      request.cancelled = true;
+      activeRequest = null;
+      if (request.controller) request.controller.abort();
+      submit.disabled = false;
     }
 
     document.body.appendChild(button);
@@ -159,8 +169,8 @@
       setPanelOpen(true);
     });
     clearHistoryButton.addEventListener("click", function () {
-      if (clearHistoryButton.disabled) return;
       if (config.clearConfirm && !window.confirm(String(config.clearConfirm))) return;
+      cancelActiveRequest();
       clearStoredConversation(storageKey);
       memory.length = 0;
       hideSourceTooltip();
@@ -168,6 +178,7 @@
       messages.innerHTML = "";
       addMessage(messages, "assistant", config.welcome);
       setQuotedSelection("");
+      focusWithoutScroll(input);
     });
 
     function setQuotedSelection(text) {
@@ -189,12 +200,22 @@
       setQuotedSelection("");
       addMessage(messages, "user", submittedQuestion);
       submit.disabled = true;
-      clearHistoryButton.disabled = true;
+      var request = {
+        cancelled: false,
+        controller: typeof window.AbortController === "function" ? new window.AbortController() : null,
+      };
+      activeRequest = request;
       var streamView = createStreamingMessage(messages);
-      ask(submittedQuestion, memory, function (event) {
-        handleStreamEvent(streamView, event);
-      })
+      ask(
+        submittedQuestion,
+        memory,
+        function (event) {
+          if (!request.cancelled) handleStreamEvent(streamView, event);
+        },
+        request.controller ? request.controller.signal : null
+      )
         .then(function (payload) {
+          if (request.cancelled) return;
           var answer = payload.answer || "No answer.";
           finishStreamingMessage(streamView, answer, payload.sources || []);
           remember(memory, "user", submittedQuestion, config.memoryTurns);
@@ -202,11 +223,13 @@
           saveConversation(storageKey, memory);
         })
         .catch(function (error) {
+          if (request.cancelled) return;
           failStreamingMessage(streamView, "Request failed: " + error.message);
         })
         .finally(function () {
+          if (activeRequest !== request) return;
+          activeRequest = null;
           submit.disabled = false;
-          clearHistoryButton.disabled = false;
           input.focus();
         });
     });
@@ -335,12 +358,14 @@
     return blockquote + "\n\n" + question;
   }
 
-  function ask(question, history, onEvent) {
-    return fetch(config.endpoint, {
+  function ask(question, history, onEvent, signal) {
+    var requestOptions = {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
       body: JSON.stringify({ question: question, history: history }),
-    }).then(function (response) {
+    };
+    if (signal) requestOptions.signal = signal;
+    return fetch(config.endpoint, requestOptions).then(function (response) {
       if (!response.ok) {
         return response.text().then(function (text) {
           throw new Error(text || response.statusText);

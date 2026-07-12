@@ -7,7 +7,7 @@ This project intentionally does not use Docker. It is a single repository with:
 - Flask backend
 - DeepSeek tool-calling agent with optional thinking mode
 - Server-sent event streaming for answers and retrieval status
-- Browser-local conversation history with a clear-history control
+- Browser-local conversation history with a clear-history control that cancels active responses
 - Reduced-motion-aware panel, message, quote, and source-preview animations
 - GitHub Markdown repository sync
 - Markdown chunking and vector retrieval

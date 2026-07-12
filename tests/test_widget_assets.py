@@ -22,3 +22,11 @@ def test_widget_motion_keeps_accessibility_fallbacks():
     assert 'panel.setAttribute("aria-hidden", String(!isOpen))' in javascript
     assert 'return ".css" + (suffix || "")' in javascript
     assert "existingLink.href === href" in javascript
+
+
+def test_clear_history_can_cancel_an_active_request():
+    javascript = (ROOT / "widget" / "src" / "ai-chat.js").read_text()
+
+    assert "request.controller.abort()" in javascript
+    assert "if (request.cancelled) return" in javascript
+    assert "clearHistoryButton.disabled = true" not in javascript
