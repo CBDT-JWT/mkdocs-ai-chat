@@ -20,3 +20,5 @@ def test_widget_motion_keeps_accessibility_fallbacks():
     assert "@media (prefers-reduced-motion: reduce)" in css
     assert 'button.setAttribute("aria-expanded", state)' in javascript
     assert 'panel.setAttribute("aria-hidden", String(!isOpen))' in javascript
+    assert 'return ".css" + (suffix || "")' in javascript
+    assert "existingLink.href === href" in javascript

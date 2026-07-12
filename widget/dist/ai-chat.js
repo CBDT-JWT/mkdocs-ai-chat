@@ -1072,7 +1072,18 @@
   function injectCssIfNeeded() {
     if (document.querySelector('link[data-mkai-css="true"]') || document.querySelector("style[data-mkai-css]")) return;
     if (!script || !script.src) return;
-    var href = script.src.replace(/\.js(?:\?.*)?$/, ".css");
+    var href = script.src.replace(/\.js([?#].*)?$/, function (_match, suffix) {
+      return ".css" + (suffix || "");
+    });
+    if (href === script.src) return;
+    var existingStylesheets = Array.prototype.slice.call(document.querySelectorAll('link[rel~="stylesheet"]'));
+    if (
+      existingStylesheets.some(function (existingLink) {
+        return existingLink.href === href;
+      })
+    ) {
+      return;
+    }
     var link = document.createElement("link");
     link.rel = "stylesheet";
     link.href = href;
