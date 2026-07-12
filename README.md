@@ -169,12 +169,19 @@ window.mkdocsAiChat = {
   memoryTurns: 6,
   clearLabel: "Clear history",
   clearConfirm: "Clear all chat history?",
+  selectionActionLabel: "Ask AI",
+  quoteLabel: "Quoted text",
+  removeQuoteLabel: "Remove quoted text",
+  selectionMaxLength: 4000,
+  selectionRootSelector: "article, .md-content__inner, .md-typeset",
   storageKey: "my-docs-ai-history",
   mathJaxUrl: "https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js"
 };
 ```
 
 Completed conversation turns are kept in `localStorage`, restored after reload, and reused as chat context. `memoryTurns` limits both stored and transmitted history; `storageKey` is optional and defaults to a key scoped by the configured endpoint.
+
+Selecting text outside the chat panel opens a contextual action. Clicking it places the selection in a removable quote preview above the input; the quote is submitted and stored with the user's question. `selectionMaxLength` limits the captured text.
 
 Formula rendering reuses the page's MathJax or KaTeX runtime when available. Complete LaTeX expressions are typeset while the answer is still streaming, and final rendering is serialized so a late stream frame cannot replace typeset math. If neither page runtime is callable, the widget lazily loads `mathJaxUrl` only after an answer contains LaTeX; set it to an empty string to disable this fallback. Markdown thematic breaks such as `---`, `***`, and `___` are rendered as horizontal rules. Lines prefixed with `>` render as an orange quote card and may contain inline Markdown and LaTeX.
 

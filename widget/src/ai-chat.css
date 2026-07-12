@@ -37,6 +37,26 @@
   object-fit: cover;
 }
 
+.mkai-selection-action {
+  position: fixed;
+  z-index: 2147483001;
+  min-height: 34px;
+  max-width: calc(100vw - 16px);
+  padding: 7px 11px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--mkai-primary);
+  color: var(--mkai-primary-text);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.2);
+  cursor: pointer;
+  font: 600 13px/1.2 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  white-space: nowrap;
+}
+
+.mkai-selection-action[hidden] {
+  display: none;
+}
+
 .mkai-panel {
   position: fixed;
   right: 24px;
@@ -338,6 +358,63 @@
   padding: 12px;
   border-top: 1px solid var(--mkai-border);
   background: #ffffff;
+}
+
+.mkai-selection-preview {
+  grid-column: 1 / -1;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid #fdba74;
+  border-left: 4px solid #f97316;
+  border-radius: 6px;
+  background: #fff7ed;
+  color: #7c2d12;
+}
+
+.mkai-selection-preview[hidden] {
+  display: none;
+}
+
+.mkai-selection-preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.mkai-selection-preview-label {
+  color: #c2410c;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mkai-selection-preview-remove {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: #9a3412;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.mkai-selection-preview-remove:hover,
+.mkai-selection-preview-remove:focus-visible {
+  background: #ffedd5;
+}
+
+.mkai-selection-preview-text {
+  max-height: 84px;
+  overflow: auto;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
 }
 
 .mkai-input {

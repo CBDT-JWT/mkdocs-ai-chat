@@ -16,6 +16,11 @@
       welcome: "Ask a question about this documentation.",
       clearLabel: "Clear history",
       clearConfirm: "Clear all chat history?",
+      selectionActionLabel: "Ask AI",
+      quoteLabel: "Quoted text",
+      removeQuoteLabel: "Remove quoted text",
+      selectionMaxLength: 4000,
+      selectionRootSelector: "article, .md-content__inner, .md-typeset",
       storageKey: "",
       mathJaxUrl: "https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.0/es5/tex-mml-chtml.js",
     },
@@ -42,12 +47,17 @@
     button.setAttribute("aria-label", "Open AI chat");
     setButtonIcon(button, config);
 
+    var selectionAction = el("button", "mkai-selection-action", config.selectionActionLabel || "Ask AI");
+    selectionAction.type = "button";
+    selectionAction.hidden = true;
+    selectionAction.setAttribute("aria-label", config.selectionActionLabel || "Ask AI");
+
     var panel = el("section", "mkai-panel");
     panel.setAttribute("aria-label", config.title);
     panel.innerHTML =
       '<div class="mkai-header"><span class="mkai-header-title"></span><div class="mkai-header-actions"><button class="mkai-clear" type="button"></button><button class="mkai-close" type="button" aria-label="Close">×</button></div></div>' +
       '<div class="mkai-messages"></div>' +
-      '<form class="mkai-form"><textarea class="mkai-input" rows="1"></textarea><button class="mkai-submit" type="submit" aria-label="Send">➜</button></form>';
+      '<form class="mkai-form"><div class="mkai-selection-preview" role="note" hidden><div class="mkai-selection-preview-header"><span class="mkai-selection-preview-label"></span><button class="mkai-selection-preview-remove" type="button">×</button></div><div class="mkai-selection-preview-text"></div></div><textarea class="mkai-input" rows="1"></textarea><button class="mkai-submit" type="submit" aria-label="Send">➜</button></form>';
 
     panel.querySelector(".mkai-header-title").textContent = config.title;
     var close = panel.querySelector(".mkai-close");
@@ -56,7 +66,15 @@
     var form = panel.querySelector(".mkai-form");
     var input = panel.querySelector(".mkai-input");
     var submit = panel.querySelector(".mkai-submit");
+    var selectionPreview = panel.querySelector(".mkai-selection-preview");
+    var selectionPreviewLabel = panel.querySelector(".mkai-selection-preview-label");
+    var selectionPreviewText = panel.querySelector(".mkai-selection-preview-text");
+    var removeSelectionButton = panel.querySelector(".mkai-selection-preview-remove");
+    var quotedSelection = "";
     input.placeholder = config.placeholder;
+    selectionPreviewLabel.textContent = config.quoteLabel || "Quoted text";
+    removeSelectionButton.setAttribute("aria-label", config.removeQuoteLabel || "Remove quoted text");
+    removeSelectionButton.title = config.removeQuoteLabel || "Remove quoted text";
     clearHistoryButton.textContent = config.clearLabel || "Clear history";
     clearHistoryButton.setAttribute("aria-label", config.clearLabel || "Clear history");
     clearHistoryButton.title = config.clearLabel || "Clear history";
@@ -65,6 +83,7 @@
 
     document.body.appendChild(button);
     document.body.appendChild(panel);
+    document.body.appendChild(selectionAction);
     if (memory.length) {
       memory.forEach(function (item) {
         addMessage(messages, item.role, item.content, item.sources || []);
@@ -81,6 +100,15 @@
     close.addEventListener("click", function () {
       panel.setAttribute("data-open", "false");
     });
+    removeSelectionButton.addEventListener("click", function () {
+      setQuotedSelection("");
+      input.focus();
+    });
+    setupSelectionAsk(selectionAction, [panel, button], function (text) {
+      setQuotedSelection(text);
+      panel.setAttribute("data-open", "true");
+      input.focus();
+    });
     clearHistoryButton.addEventListener("click", function () {
       if (clearHistoryButton.disabled) return;
       if (config.clearConfirm && !window.confirm(String(config.clearConfirm))) return;
@@ -89,7 +117,14 @@
       clearTypesetMath(messages);
       messages.innerHTML = "";
       addMessage(messages, "assistant", config.welcome);
+      setQuotedSelection("");
     });
+
+    function setQuotedSelection(text) {
+      quotedSelection = normalizeSelectedText(text, config.selectionMaxLength);
+      selectionPreview.hidden = !quotedSelection;
+      selectionPreviewText.textContent = quotedSelection;
+    }
 
     form.addEventListener("submit", function (event) {
       event.preventDefault();
@@ -99,18 +134,20 @@
         addMessage(messages, "assistant", "AI endpoint is not configured.");
         return;
       }
+      var submittedQuestion = formatQuestionWithQuote(quotedSelection, question);
       input.value = "";
-      addMessage(messages, "user", question);
+      setQuotedSelection("");
+      addMessage(messages, "user", submittedQuestion);
       submit.disabled = true;
       clearHistoryButton.disabled = true;
       var streamView = createStreamingMessage(messages);
-      ask(question, memory, function (event) {
+      ask(submittedQuestion, memory, function (event) {
         handleStreamEvent(streamView, event);
       })
         .then(function (payload) {
           var answer = payload.answer || "No answer.";
           finishStreamingMessage(streamView, answer, payload.sources || []);
-          remember(memory, "user", question, config.memoryTurns);
+          remember(memory, "user", submittedQuestion, config.memoryTurns);
           remember(memory, "assistant", answer, config.memoryTurns, payload.sources || []);
           saveConversation(storageKey, memory);
         })
@@ -124,6 +161,129 @@
         });
     });
   });
+
+  function setupSelectionAsk(action, excludedNodes, onAsk) {
+    var selectedText = "";
+    var pressedText = "";
+    var updateTimer = 0;
+    var contentRoots = [];
+    try {
+      var rootSelector = String(config.selectionRootSelector || "").trim();
+      if (rootSelector) contentRoots = Array.prototype.slice.call(document.querySelectorAll(rootSelector));
+    } catch (_error) {}
+    if (!contentRoots.length) {
+      contentRoots = [document.querySelector("main, [role='main']") || document.body];
+    }
+
+    function hideAction() {
+      action.hidden = true;
+      selectedText = "";
+    }
+
+    function queueUpdate() {
+      window.clearTimeout(updateTimer);
+      updateTimer = window.setTimeout(updateAction, 0);
+    }
+
+    function updateAction() {
+      updateTimer = 0;
+      var selection = window.getSelection ? window.getSelection() : null;
+      if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+        hideAction();
+        return;
+      }
+      if (nodeInsideAny(selection.anchorNode, excludedNodes.concat(action)) || nodeInsideAny(selection.focusNode, excludedNodes.concat(action))) {
+        hideAction();
+        return;
+      }
+      if (!nodeInsideAny(selection.anchorNode, contentRoots) || !nodeInsideAny(selection.focusNode, contentRoots)) {
+        hideAction();
+        return;
+      }
+
+      var text = normalizeSelectedText(selection.toString(), config.selectionMaxLength);
+      if (!text) {
+        hideAction();
+        return;
+      }
+
+      var range = selection.getRangeAt(0);
+      var rects = range.getClientRects();
+      var rect = rects.length ? rects[rects.length - 1] : range.getBoundingClientRect();
+      if (!rect || (!rect.width && !rect.height)) {
+        hideAction();
+        return;
+      }
+
+      selectedText = text;
+      action.hidden = false;
+      action.style.left = "0px";
+      action.style.top = "0px";
+      var gap = 8;
+      var left = rect.left + rect.width / 2 - action.offsetWidth / 2;
+      left = Math.max(gap, Math.min(left, window.innerWidth - action.offsetWidth - gap));
+      var top = rect.top - action.offsetHeight - gap;
+      if (top < gap) top = Math.min(rect.bottom + gap, window.innerHeight - action.offsetHeight - gap);
+      action.style.left = Math.round(left) + "px";
+      action.style.top = Math.round(Math.max(gap, top)) + "px";
+    }
+
+    function preserveSelection(event) {
+      pressedText = selectedText;
+      event.preventDefault();
+    }
+
+    action.addEventListener("pointerdown", preserveSelection);
+    action.addEventListener("mousedown", preserveSelection);
+    action.addEventListener("click", function () {
+      var text = pressedText || selectedText;
+      pressedText = "";
+      if (!text) return;
+      hideAction();
+      var selection = window.getSelection ? window.getSelection() : null;
+      if (selection) selection.removeAllRanges();
+      onAsk(text);
+    });
+    document.addEventListener("selectionchange", queueUpdate);
+    document.addEventListener("mouseup", function (event) {
+      if (!action.contains(event.target)) queueUpdate();
+    });
+    document.addEventListener("keyup", queueUpdate);
+    document.addEventListener("touchend", queueUpdate, { passive: true });
+    window.addEventListener("scroll", hideAction, { passive: true, capture: true });
+    window.addEventListener("resize", hideAction, { passive: true });
+  }
+
+  function nodeInsideAny(node, containers) {
+    if (!node) return false;
+    var element = node.nodeType === 1 ? node : node.parentElement;
+    if (!element) return false;
+    return containers.some(function (container) {
+      return container === element || container.contains(element);
+    });
+  }
+
+  function normalizeSelectedText(text, maxLength) {
+    var limit = Math.max(Number(maxLength) || 4000, 1);
+    var normalized = String(text || "")
+      .replace(/\r\n?/g, "\n")
+      .replace(/\u00a0/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    if (normalized.length <= limit) return normalized;
+    return normalized.slice(0, Math.max(limit - 3, 1)).trimEnd() + "...";
+  }
+
+  function formatQuestionWithQuote(quote, question) {
+    if (!quote) return question;
+    var blockquote = quote
+      .split("\n")
+      .map(function (line) {
+        return line ? "> " + line : ">";
+      })
+      .join("\n");
+    return blockquote + "\n\n" + question;
+  }
 
   function ask(question, history, onEvent) {
     return fetch(config.endpoint, {
