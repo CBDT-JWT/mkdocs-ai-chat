@@ -7,6 +7,7 @@ This project intentionally does not use Docker. It is a single repository with:
 - Flask backend
 - DeepSeek tool-calling agent with optional thinking mode
 - Server-sent event streaming for answers and retrieval status
+- Browser-local conversation history with a clear-history control
 - GitHub Markdown repository sync
 - Markdown chunking and vector retrieval
 - FAISS when available, with a lightweight fallback for local development
@@ -164,9 +165,15 @@ Create `docs/js/ai-chat-config.js`:
 window.mkdocsAiChat = {
   endpoint: "https://your-ai-server.com/api/chat",
   title: "Docs AI",
-  placeholder: "Ask this documentation..."
+  placeholder: "Ask this documentation...",
+  memoryTurns: 6,
+  clearLabel: "Clear history",
+  clearConfirm: "Clear all chat history?",
+  storageKey: "my-docs-ai-history"
 };
 ```
+
+Completed conversation turns are kept in `localStorage`, restored after reload, and reused as chat context. `memoryTurns` limits both stored and transmitted history; `storageKey` is optional and defaults to a key scoped by the configured endpoint.
 
 Alternative: use script attributes if your theme allows custom script tags:
 

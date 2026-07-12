@@ -69,6 +69,43 @@
   font-weight: 700;
 }
 
+.mkai-header-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mkai-header-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+}
+
+.mkai-clear {
+  min-height: 30px;
+  border: 0;
+  border-radius: 4px;
+  padding: 4px 7px;
+  background: transparent;
+  color: var(--mkai-muted);
+  cursor: pointer;
+  font: 500 12px/1.2 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  white-space: nowrap;
+}
+
+.mkai-clear:hover,
+.mkai-clear:focus-visible {
+  background: #f3f4f6;
+  color: var(--mkai-text);
+}
+
+.mkai-clear:disabled {
+  cursor: wait;
+  opacity: 0.45;
+}
+
 .mkai-close {
   width: 30px;
   height: 30px;

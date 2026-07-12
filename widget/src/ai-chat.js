@@ -14,10 +14,14 @@
       iconText: "AI",
       memoryTurns: 6,
       welcome: "Ask a question about this documentation.",
+      clearLabel: "Clear history",
+      clearConfirm: "Clear all chat history?",
+      storageKey: "",
     },
     window.mkdocsAiChat || {},
     script ? script.dataset : {}
   );
+  var mathTypesetQueue = Promise.resolve();
 
   function ready(fn) {
     if (document.readyState === "loading") {
@@ -38,22 +42,33 @@
     var panel = el("section", "mkai-panel");
     panel.setAttribute("aria-label", config.title);
     panel.innerHTML =
-      '<div class="mkai-header"><span></span><button class="mkai-close" type="button" aria-label="Close">×</button></div>' +
+      '<div class="mkai-header"><span class="mkai-header-title"></span><div class="mkai-header-actions"><button class="mkai-clear" type="button"></button><button class="mkai-close" type="button" aria-label="Close">×</button></div></div>' +
       '<div class="mkai-messages"></div>' +
       '<form class="mkai-form"><textarea class="mkai-input" rows="1"></textarea><button class="mkai-submit" type="submit" aria-label="Send">➜</button></form>';
 
-    panel.querySelector(".mkai-header span").textContent = config.title;
+    panel.querySelector(".mkai-header-title").textContent = config.title;
     var close = panel.querySelector(".mkai-close");
+    var clearHistoryButton = panel.querySelector(".mkai-clear");
     var messages = panel.querySelector(".mkai-messages");
     var form = panel.querySelector(".mkai-form");
     var input = panel.querySelector(".mkai-input");
     var submit = panel.querySelector(".mkai-submit");
     input.placeholder = config.placeholder;
-    var memory = [];
+    clearHistoryButton.textContent = config.clearLabel || "Clear history";
+    clearHistoryButton.setAttribute("aria-label", config.clearLabel || "Clear history");
+    clearHistoryButton.title = config.clearLabel || "Clear history";
+    var storageKey = conversationStorageKey(config);
+    var memory = loadConversation(storageKey, config.memoryTurns);
 
     document.body.appendChild(button);
     document.body.appendChild(panel);
-    addMessage(messages, "assistant", config.welcome);
+    if (memory.length) {
+      memory.forEach(function (item) {
+        addMessage(messages, item.role, item.content, item.sources || []);
+      });
+    } else {
+      addMessage(messages, "assistant", config.welcome);
+    }
 
     button.addEventListener("click", function () {
       var open = panel.getAttribute("data-open") === "true";
@@ -62,6 +77,15 @@
     });
     close.addEventListener("click", function () {
       panel.setAttribute("data-open", "false");
+    });
+    clearHistoryButton.addEventListener("click", function () {
+      if (clearHistoryButton.disabled) return;
+      if (config.clearConfirm && !window.confirm(String(config.clearConfirm))) return;
+      clearStoredConversation(storageKey);
+      memory.length = 0;
+      clearTypesetMath(messages);
+      messages.innerHTML = "";
+      addMessage(messages, "assistant", config.welcome);
     });
 
     form.addEventListener("submit", function (event) {
@@ -75,6 +99,7 @@
       input.value = "";
       addMessage(messages, "user", question);
       submit.disabled = true;
+      clearHistoryButton.disabled = true;
       var streamView = createStreamingMessage(messages);
       ask(question, memory, function (event) {
         handleStreamEvent(streamView, event);
@@ -83,13 +108,15 @@
           var answer = payload.answer || "No answer.";
           finishStreamingMessage(streamView, answer, payload.sources || []);
           remember(memory, "user", question, config.memoryTurns);
-          remember(memory, "assistant", answer, config.memoryTurns);
+          remember(memory, "assistant", answer, config.memoryTurns, payload.sources || []);
+          saveConversation(storageKey, memory);
         })
         .catch(function (error) {
           failStreamingMessage(streamView, "Request failed: " + error.message);
         })
         .finally(function () {
           submit.disabled = false;
+          clearHistoryButton.disabled = false;
           input.focus();
         });
     });
@@ -174,12 +201,71 @@
     return read();
   }
 
-  function remember(memory, role, content, maxTurns) {
-    memory.push({ role: role, content: content });
+  function conversationStorageKey(config) {
+    if (String(config.storageKey || "").trim()) return String(config.storageKey).trim();
+    return "mkdocs-ai-chat:history:" + String(config.endpoint || window.location.origin);
+  }
+
+  function loadConversation(storageKey, maxTurns) {
+    try {
+      var payload = JSON.parse(window.localStorage.getItem(storageKey) || "null");
+      var stored = payload && payload.version === 1 ? payload.messages : payload;
+      if (!Array.isArray(stored)) return [];
+      var memory = stored
+        .filter(function (item) {
+          return item && (item.role === "user" || item.role === "assistant") && typeof item.content === "string";
+        })
+        .map(function (item) {
+          return {
+            role: item.role,
+            content: item.content,
+            sources: normalizeSources(item.sources),
+          };
+        });
+      trimConversation(memory, maxTurns);
+      return memory;
+    } catch (_error) {
+      return [];
+    }
+  }
+
+  function saveConversation(storageKey, memory) {
+    try {
+      window.localStorage.setItem(storageKey, JSON.stringify({ version: 1, messages: memory }));
+    } catch (_error) {}
+  }
+
+  function clearStoredConversation(storageKey) {
+    try {
+      window.localStorage.removeItem(storageKey);
+    } catch (_error) {}
+  }
+
+  function normalizeSources(sources) {
+    if (!Array.isArray(sources)) return [];
+    return sources.slice(0, 8).map(function (source) {
+      return {
+        title: String((source && source.title) || "").slice(0, 300),
+        source: String((source && source.source) || "").slice(0, 500),
+        url: String((source && source.url) || "").slice(0, 2000),
+      };
+    });
+  }
+
+  function trimConversation(memory, maxTurns) {
     var maxMessages = Math.max(Number(maxTurns) || 6, 1) * 2;
     while (memory.length > maxMessages) {
       memory.shift();
     }
+  }
+
+  function remember(memory, role, content, maxTurns, sources) {
+    var item = { role: role, content: content };
+    if (role === "assistant" && sources && sources.length) {
+      item.sources = normalizeSources(sources);
+    }
+    memory.push(item);
+    trimConversation(memory, maxTurns);
   }
 
   function addMessage(container, role, text, sources) {
@@ -527,7 +613,19 @@
 
   function typesetMath(node) {
     if (window.MathJax && window.MathJax.typesetPromise) {
-      window.MathJax.typesetPromise([node]).catch(function () {});
+      var mathJax = window.MathJax;
+      mathTypesetQueue = mathTypesetQueue
+        .catch(function () {})
+        .then(function () {
+          if (!node.isConnected) return;
+          if (mathJax.startup && mathJax.startup.promise) return mathJax.startup.promise;
+        })
+        .then(function () {
+          if (!node.isConnected) return;
+          if (mathJax.typesetClear) mathJax.typesetClear([node]);
+          return mathJax.typesetPromise([node]);
+        })
+        .catch(function () {});
       return;
     }
     if (window.renderMathInElement) {
@@ -540,6 +638,13 @@
         ],
       });
     }
+  }
+
+  function clearTypesetMath(node) {
+    if (!window.MathJax || !window.MathJax.typesetClear) return;
+    try {
+      window.MathJax.typesetClear([node]);
+    } catch (_error) {}
   }
 
   function injectCssIfNeeded() {
