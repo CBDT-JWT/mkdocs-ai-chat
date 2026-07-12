@@ -264,7 +264,9 @@ def _highlight_term(question: str, chunk) -> str:
 def _source_matches_question(chunk, question: str) -> bool:
     haystack = f"{chunk.title}\n{chunk.heading}\n{chunk.source}\n{chunk.text}".lower()
     if "sa" in question.lower():
-        return any(term in haystack for term in ("sa", "sinc", "抽样", "采样"))
+        return any(term in haystack for term in ("sinc", "抽样", "采样")) or bool(
+            re.search(r"(?<![a-z0-9])sa(?![a-z0-9])", haystack)
+        )
     return True
 
 

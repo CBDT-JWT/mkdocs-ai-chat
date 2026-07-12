@@ -47,6 +47,17 @@ def test_sources_filter_low_scores_and_add_highlight():
         ),
         (
             DocumentChunk(
+                id="dsa",
+                text="递归函数可以通过显式栈或循环消除。",
+                title="数据结构与算法",
+                heading="递归的消除",
+                source="dsa.md",
+                url="https://note.weitao-jiang.cn/dsa",
+            ),
+            6.5,
+        ),
+        (
+            DocumentChunk(
                 id="noise",
                 text="二元已知信号检测。",
                 title="统计信号处理",
