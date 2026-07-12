@@ -314,7 +314,11 @@
       genericTrace: null,
       answerText: "",
       sources: [],
-      renderQueued: false,
+      renderFrame: 0,
+      renderRequested: false,
+      renderRunning: false,
+      finishPending: false,
+      finishSources: [],
     };
   }
 
@@ -364,11 +368,47 @@
   }
 
   function queueStreamRender(view) {
-    if (view.renderQueued) return;
-    view.renderQueued = true;
-    window.requestAnimationFrame(function () {
-      view.renderQueued = false;
-      view.answer.innerHTML = renderMarkdown(view.answerText);
+    requestStreamRender(view, false);
+  }
+
+  function requestStreamRender(view, immediate) {
+    view.renderRequested = true;
+    if (view.renderRunning) return;
+    if (view.renderFrame) {
+      if (!immediate) return;
+      window.cancelAnimationFrame(view.renderFrame);
+      view.renderFrame = 0;
+    }
+    if (immediate) {
+      renderStreamView(view);
+      return;
+    }
+    view.renderFrame = window.requestAnimationFrame(function () {
+      view.renderFrame = 0;
+      renderStreamView(view);
+    });
+  }
+
+  function renderStreamView(view) {
+    if (view.renderRunning || !view.renderRequested) return;
+    view.renderRequested = false;
+    view.renderRunning = true;
+    var renderedText = view.answerText;
+    clearTypesetMath(view.answer);
+    view.answer.innerHTML = renderMarkdown(renderedText);
+    view.container.scrollTop = view.container.scrollHeight;
+
+    typesetMath(view.answer).finally(function () {
+      view.renderRunning = false;
+      if (view.renderRequested || view.answerText !== renderedText) {
+        requestStreamRender(view, view.finishPending);
+        return;
+      }
+      if (view.finishPending) {
+        renderSources(view.sourceBox, view.finishSources);
+        view.message.dataset.streaming = "false";
+        view.finishPending = false;
+      }
       view.container.scrollTop = view.container.scrollHeight;
     });
   }
@@ -376,19 +416,17 @@
   function finishStreamingMessage(view, answer, sources) {
     clearGenericTrace(view);
     view.answerText = answer;
-    view.answer.innerHTML = renderMarkdown(answer);
-    renderSources(view.sourceBox, sources);
-    view.message.dataset.streaming = "false";
-    typesetMath(view.answer);
-    view.container.scrollTop = view.container.scrollHeight;
+    view.finishSources = sources || [];
+    view.finishPending = true;
+    requestStreamRender(view, true);
   }
 
   function failStreamingMessage(view, text) {
     clearGenericTrace(view);
     view.answerText = text;
-    view.answer.innerHTML = renderMarkdown(text);
-    view.message.dataset.streaming = "false";
-    view.container.scrollTop = view.container.scrollHeight;
+    view.finishSources = [];
+    view.finishPending = true;
+    requestStreamRender(view, true);
   }
 
   function renderSources(sourceBox, sources) {
@@ -468,6 +506,13 @@
         continue;
       }
 
+      if (isHorizontalRule(trimmed)) {
+        flushParagraph();
+        html.push("<hr>");
+        i += 1;
+        continue;
+      }
+
       if (isTableStart(lines, i)) {
         flushParagraph();
         var table = parseTable(lines, i, math);
@@ -498,6 +543,10 @@
 
     flushParagraph();
     return html.join("");
+  }
+
+  function isHorizontalRule(line) {
+    return /^(?:(?:\*\s*){3,}|(?:-\s*){3,}|(?:_\s*){3,})$/.test(line);
   }
 
   function renderInline(text, math) {
@@ -615,7 +664,7 @@
   }
 
   function typesetMath(node) {
-    if (!node.querySelector(".mkai-math")) return;
+    if (!node.querySelector(".mkai-math")) return Promise.resolve();
     mathTypesetQueue = mathTypesetQueue
       .catch(function () {})
       .then(function () {
@@ -637,6 +686,7 @@
         });
       })
       .catch(function () {});
+    return mathTypesetQueue;
   }
 
   function ensureMathEngine() {

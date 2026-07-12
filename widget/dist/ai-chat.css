@@ -245,6 +245,13 @@
   font-size: 15px;
 }
 
+.mkai-message hr {
+  height: 0;
+  margin: 14px 0;
+  border: 0;
+  border-top: 1px solid #d1d5db;
+}
+
 .mkai-message ul,
 .mkai-message ol {
   margin: 8px 0 10px 20px;
