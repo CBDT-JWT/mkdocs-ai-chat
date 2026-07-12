@@ -93,6 +93,34 @@ def test_source_preview_centers_long_text_on_question_term():
     assert preview.endswith("...")
 
 
+def test_source_preview_keeps_complete_markdown_and_formula_blocks():
+    chunk = DocumentChunk(
+        id="markdown-preview",
+        text="""无关介绍。""" + ("前文" * 80) + """
+
+**Sa函数**定义如下：
+
+$$
+\\mathrm{Sa}(t)=\\frac{\\sin t}{t}
+$$
+
+- 它是偶函数
+- 它用于抽样恢复
+
+结尾。""",
+        title="信号与系统",
+        heading="基本概念",
+        source="signals.md",
+        url="https://docs.example.com/signals#basics",
+    )
+
+    preview = _source_preview(chunk, "Sa函数", limit=180)
+
+    assert "**Sa函数**" in preview
+    assert "$$\n\\mathrm{Sa}(t)=\\frac{\\sin t}{t}\n$$" in preview
+    assert "- 它是偶函数" in preview
+
+
 def test_sanitize_history_keeps_recent_user_assistant_messages():
     history = _sanitize_history(
         [

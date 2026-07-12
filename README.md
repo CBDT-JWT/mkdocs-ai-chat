@@ -227,7 +227,7 @@ Response:
 }
 ```
 
-Source URLs include the indexed Markdown heading fragment. Clicking a source opens the exact documentation section while preserving the optional `?h=` text highlight query. The widget shows each source's question-centered `preview` in a tooltip on hover or keyboard focus.
+Source URLs include the indexed Markdown heading fragment. Clicking a source opens the exact documentation section while preserving the optional `?h=` text highlight query. The widget renders each source's question-centered `preview` as Markdown with MathJax/KaTeX support in a tooltip on hover or keyboard focus.
 
 ### `POST /api/reindex`
 

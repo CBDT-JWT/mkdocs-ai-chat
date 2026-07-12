@@ -384,6 +384,74 @@
   overflow: hidden;
 }
 
+.mkai-source-tooltip-preview p {
+  margin: 0 0 6px;
+}
+
+.mkai-source-tooltip-preview > :last-child {
+  margin-bottom: 0;
+}
+
+.mkai-source-tooltip-preview h1,
+.mkai-source-tooltip-preview h2,
+.mkai-source-tooltip-preview h3,
+.mkai-source-tooltip-preview h4 {
+  margin: 7px 0 5px;
+  color: #ffffff;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.mkai-source-tooltip-preview ul,
+.mkai-source-tooltip-preview ol {
+  margin: 5px 0 6px 18px;
+  padding: 0;
+}
+
+.mkai-source-tooltip-preview li {
+  margin: 2px 0;
+}
+
+.mkai-source-tooltip-preview pre {
+  margin: 6px 0;
+  padding: 7px 8px;
+  border-radius: 4px;
+  background: #030712;
+  white-space: pre-wrap;
+}
+
+.mkai-source-tooltip-preview table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.mkai-source-tooltip-preview th,
+.mkai-source-tooltip-preview td {
+  border: 1px solid #4b5563;
+  padding: 3px 4px;
+}
+
+.mkai-source-tooltip-preview hr {
+  margin: 7px 0;
+  border: 0;
+  border-top: 1px solid #4b5563;
+}
+
+.mkai-source-tooltip-preview .mkai-quote {
+  margin: 6px 0;
+  padding: 6px 8px;
+  border-left: 3px solid #fb923c;
+  background: #1f2937;
+}
+
+.mkai-source-tooltip-preview .mkai-math-display {
+  margin: 6px 0;
+  padding: 6px 8px;
+  background: #1f2937;
+  color: #f9fafb;
+}
+
 .mkai-form {
   display: grid;
   grid-template-columns: 1fr auto;

@@ -31,6 +31,8 @@
   var mathEnginePromise = null;
   var activeMathEngine = null;
   var sourceTooltipNode = null;
+  var sourceTooltipRevision = 0;
+  var sourceTooltipRenderQueue = Promise.resolve();
 
   function ready(fn) {
     if (document.readyState === "loading") {
@@ -422,7 +424,7 @@
         title: String((source && source.title) || "").slice(0, 300),
         source: String((source && source.source) || "").slice(0, 500),
         url: String((source && source.url) || "").slice(0, 2000),
-        preview: String((source && source.preview) || "").slice(0, 1000),
+        preview: String((source && source.preview) || "").slice(0, 2000),
       };
     });
   }
@@ -628,14 +630,31 @@
 
   function showSourceTooltip(link, source) {
     if (!sourceTooltipNode || !source.preview || !link.isConnected) return;
-    sourceTooltipNode.innerHTML = "";
-    sourceTooltipNode.appendChild(el("div", "mkai-source-tooltip-title", source.title || source.source || "Source"));
-    sourceTooltipNode.appendChild(el("div", "mkai-source-tooltip-preview", String(source.preview).slice(0, 1000)));
-    sourceTooltipNode.style.left = "0px";
-    sourceTooltipNode.style.top = "0px";
-    sourceTooltipNode.style.visibility = "hidden";
-    sourceTooltipNode.hidden = false;
+    var revision = ++sourceTooltipRevision;
+    sourceTooltipRenderQueue = sourceTooltipRenderQueue
+      .catch(function () {})
+      .then(function () {
+        if (revision !== sourceTooltipRevision || !link.isConnected) return;
+        clearTypesetMath(sourceTooltipNode);
+        sourceTooltipNode.innerHTML = "";
+        sourceTooltipNode.appendChild(el("div", "mkai-source-tooltip-title", source.title || source.source || "Source"));
+        var preview = el("div", "mkai-source-tooltip-preview");
+        preview.innerHTML = renderMarkdown(String(source.preview).slice(0, 2000));
+        sourceTooltipNode.appendChild(preview);
+        sourceTooltipNode.style.left = "0px";
+        sourceTooltipNode.style.top = "0px";
+        sourceTooltipNode.style.visibility = "hidden";
+        sourceTooltipNode.hidden = false;
+        positionSourceTooltip(link);
+        return typesetMath(preview).then(function () {
+          if (revision === sourceTooltipRevision && !sourceTooltipNode.hidden && link.isConnected) {
+            positionSourceTooltip(link);
+          }
+        });
+      });
+  }
 
+  function positionSourceTooltip(link) {
     var gap = 8;
     var rect = link.getBoundingClientRect();
     var left = Math.max(gap, Math.min(rect.left, window.innerWidth - sourceTooltipNode.offsetWidth - gap));
@@ -649,6 +668,7 @@
 
   function hideSourceTooltip() {
     if (!sourceTooltipNode) return;
+    sourceTooltipRevision += 1;
     sourceTooltipNode.hidden = true;
     sourceTooltipNode.style.visibility = "hidden";
   }

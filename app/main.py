@@ -262,27 +262,50 @@ def _highlight_term(question: str, chunk) -> str:
     return chunk.heading or ""
 
 
-def _source_preview(chunk, question: str, limit: int = 320) -> str:
-    text = str(chunk.text or "")
-    text = re.sub(r"```[^\n]*\n?", " ", text)
-    text = text.replace("```", " ")
-    text = re.sub(r"!\[([^\]]*)\]\([^)]+\)", r"\1", text)
-    text = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", text)
-    text = re.sub(r"<[^>]+>", " ", text)
-    text = re.sub(r"(?m)^\s*(?:[-*+]\s+|\d+[.)]\s+)", "", text)
-    text = text.replace("**", "").replace("__", "").replace("~~", "").replace("`", "")
-    text = re.sub(r"\s+", " ", text).strip()
+def _source_preview(chunk, question: str, limit: int = 700) -> str:
+    text = str(chunk.text or "").replace("\r\n", "\n").strip()
     if len(text) <= limit:
         return text
 
     term = _highlight_term(question, chunk)
-    index = text.lower().find(term.lower()) if term else -1
+    blocks = [block.strip() for block in re.split(r"\n\s*\n", text) if block.strip()]
+    if not blocks:
+        return ""
+
+    relevant = 0
+    if term:
+        lowered_term = term.lower()
+        relevant = next((index for index, block in enumerate(blocks) if lowered_term in block.lower()), 0)
+    if len(blocks[relevant]) > limit:
+        return _trim_preview_block(blocks[relevant], term, limit)
+
+    selected = {relevant}
+    length = len(blocks[relevant])
+    for index in range(relevant + 1, len(blocks)):
+        candidate_length = len(blocks[index]) + 2
+        if length + candidate_length > limit:
+            break
+        selected.add(index)
+        length += candidate_length
+    for index in range(relevant - 1, -1, -1):
+        candidate_length = len(blocks[index]) + 2
+        if length + candidate_length > limit:
+            break
+        selected.add(index)
+        length += candidate_length
+    return "\n\n".join(blocks[index] for index in sorted(selected))
+
+
+def _trim_preview_block(block: str, term: str, limit: int) -> str:
+    if ("$$" in block or "\\[" in block) and len(block) <= 2000:
+        return block
+    index = block.lower().find(term.lower()) if term else -1
     start = max(index - limit // 3, 0) if index >= 0 else 0
-    end = min(start + limit, len(text))
-    if end == len(text):
+    end = min(start + limit, len(block))
+    if end == len(block):
         start = max(end - limit, 0)
-    preview = text[start:end].strip()
-    return ("..." if start else "") + preview + ("..." if end < len(text) else "")
+    preview = block[start:end].strip()
+    return ("..." if start else "") + preview + ("..." if end < len(block) else "")
 
 
 def _source_matches_question(chunk, question: str) -> bool:
