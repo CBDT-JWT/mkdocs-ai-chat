@@ -521,6 +521,14 @@
         continue;
       }
 
+      if (/^\s{0,3}(?:>|&gt;)/.test(line)) {
+        flushParagraph();
+        var quote = parseBlockquote(lines, i, math, codeBlocks);
+        html.push(quote.html);
+        i = quote.next;
+        continue;
+      }
+
       if (/^\s*[-*+]\s+/.test(line)) {
         flushParagraph();
         var ul = parseList(lines, i, false, math);
@@ -547,6 +555,21 @@
 
   function isHorizontalRule(line) {
     return /^(?:(?:\*\s*){3,}|(?:-\s*){3,}|(?:_\s*){3,})$/.test(line);
+  }
+
+  function parseBlockquote(lines, start, math, codeBlocks) {
+    var quoteLines = [];
+    var i = start;
+    while (i < lines.length) {
+      var match = lines[i].match(/^\s{0,3}(?:>|&gt;)\s?(.*)$/);
+      if (!match) break;
+      quoteLines.push(match[1]);
+      i += 1;
+    }
+    return {
+      html: '<blockquote class="mkai-quote">' + renderBlocks(quoteLines.join("\n"), math, codeBlocks) + "</blockquote>",
+      next: i,
+    };
   }
 
   function renderInline(text, math) {

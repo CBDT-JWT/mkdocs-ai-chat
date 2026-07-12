@@ -252,6 +252,20 @@
   border-top: 1px solid #d1d5db;
 }
 
+.mkai-message .mkai-quote {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border: 1px solid #fdba74;
+  border-left: 4px solid #f97316;
+  border-radius: 6px;
+  background: #fff7ed;
+  color: #7c2d12;
+}
+
+.mkai-message .mkai-quote > :last-child {
+  margin-bottom: 0;
+}
+
 .mkai-message ul,
 .mkai-message ol {
   margin: 8px 0 10px 20px;

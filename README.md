@@ -176,7 +176,7 @@ window.mkdocsAiChat = {
 
 Completed conversation turns are kept in `localStorage`, restored after reload, and reused as chat context. `memoryTurns` limits both stored and transmitted history; `storageKey` is optional and defaults to a key scoped by the configured endpoint.
 
-Formula rendering reuses the page's MathJax or KaTeX runtime when available. Complete LaTeX expressions are typeset while the answer is still streaming, and final rendering is serialized so a late stream frame cannot replace typeset math. If neither page runtime is callable, the widget lazily loads `mathJaxUrl` only after an answer contains LaTeX; set it to an empty string to disable this fallback. Markdown thematic breaks such as `---`, `***`, and `___` are rendered as horizontal rules.
+Formula rendering reuses the page's MathJax or KaTeX runtime when available. Complete LaTeX expressions are typeset while the answer is still streaming, and final rendering is serialized so a late stream frame cannot replace typeset math. If neither page runtime is callable, the widget lazily loads `mathJaxUrl` only after an answer contains LaTeX; set it to an empty string to disable this fallback. Markdown thematic breaks such as `---`, `***`, and `___` are rendered as horizontal rules. Lines prefixed with `>` render as an orange quote card and may contain inline Markdown and LaTeX.
 
 Alternative: use script attributes if your theme allows custom script tags:
 
