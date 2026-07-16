@@ -6,6 +6,12 @@
 
 项目不使用 Docker。前端组件已经发布到 GitHub Pages，大多数使用者只需要修改 `mkdocs.yml`，再安装后端服务即可。
 
+## 使用案例
+
+[打开项目展示页](https://cbdt-jwt.github.io/mkdocs-ai-chat/)
+
+![mkdocs-ai-chat 在 EEnotes 文档页面中回答问题](site/assets/mkdocs-ai-chat-demo.gif)
+
 ## 接入 MkDocs
 
 ### 1. 引用已发布的前端组件

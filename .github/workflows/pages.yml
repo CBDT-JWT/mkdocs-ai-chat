@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
     paths:
+      - "site/**"
       - "widget/dist/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
@@ -31,6 +32,7 @@ jobs:
       - name: Prepare static artifact
         run: |
           mkdir -p public
+          cp -R site/. public/
           cp widget/dist/ai-chat.js public/ai-chat.js
           cp widget/dist/ai-chat.css public/ai-chat.css
       - uses: actions/upload-pages-artifact@v3

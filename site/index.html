@@ -1,0 +1,1683 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0b0d10">
+    <meta
+      name="description"
+      content="无需 Docker，为 MkDocs 或 Zensical 文档站添加支持检索与流式输出的 AI 对话。"
+    >
+    <meta property="og:title" content="mkdocs-ai-chat｜为 MkDocs 添加 AI 对话">
+    <meta
+      property="og:description"
+      content="一个轻量、理解文档内容并支持流式输出的 MkDocs AI 对话插件。"
+    >
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="zh_CN">
+    <meta property="og:url" content="https://cbdt-jwt.github.io/mkdocs-ai-chat/">
+    <meta
+      property="og:image"
+      content="https://cbdt-jwt.github.io/mkdocs-ai-chat/assets/mkdocs-ai-chat-demo.gif"
+    >
+    <link rel="canonical" href="https://cbdt-jwt.github.io/mkdocs-ai-chat/">
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    <title>mkdocs-ai-chat｜为 MkDocs 添加 AI 对话</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #111317;
+        --muted: #626873;
+        --paper: #ffffff;
+        --soft: #f3f5f7;
+        --line: #d9dde3;
+        --dark: #0b0d10;
+        --dark-soft: #15181d;
+        --dark-line: #2b3038;
+        --accent: #246bfd;
+        --accent-dark: #0f4fd1;
+        --max-width: 1180px;
+        --radius: 8px;
+        --header-height: 68px;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+        scroll-padding-top: calc(var(--header-height) + 20px);
+      }
+
+      body {
+        margin: 0;
+        overflow-x: hidden;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+        font-size: 16px;
+        line-height: 1.6;
+        letter-spacing: 0;
+        text-rendering: optimizeLegibility;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      button,
+      a {
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      button {
+        font: inherit;
+      }
+
+      img {
+        display: block;
+        max-width: 100%;
+      }
+
+      .skip-link {
+        position: fixed;
+        top: 10px;
+        left: 10px;
+        z-index: 100;
+        padding: 10px 14px;
+        border-radius: 4px;
+        background: var(--paper);
+        color: var(--ink);
+        transform: translateY(-160%);
+      }
+
+      .skip-link:focus {
+        transform: translateY(0);
+      }
+
+      .container {
+        width: min(calc(100% - 48px), var(--max-width));
+        margin-inline: auto;
+      }
+
+      .site-header {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        height: var(--header-height);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(11, 13, 16, 0.94);
+        color: #f7f8fa;
+        transition: background 180ms ease, border-color 180ms ease;
+      }
+
+      .site-header[data-scrolled="true"] {
+        border-color: var(--dark-line);
+        background: rgba(11, 13, 16, 0.985);
+      }
+
+      .nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 100%;
+        gap: 24px;
+      }
+
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        min-width: max-content;
+        gap: 11px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 15px;
+        font-weight: 700;
+      }
+
+      .brand-mark {
+        width: 13px;
+        height: 13px;
+        border: 3px solid var(--accent);
+        background: transparent;
+        transform: rotate(45deg);
+        transition: transform 220ms ease, background 220ms ease;
+      }
+
+      .brand:hover .brand-mark,
+      .brand:focus-visible .brand-mark {
+        background: var(--accent);
+        transform: rotate(135deg);
+      }
+
+      .nav-links {
+        display: flex;
+        align-items: center;
+        gap: 26px;
+        font-size: 14px;
+        font-weight: 650;
+        white-space: nowrap;
+      }
+
+      .nav-link {
+        color: #aeb4bd;
+        transition: color 160ms ease;
+      }
+
+      .nav-link:hover,
+      .nav-link:focus-visible {
+        color: #ffffff;
+      }
+
+      .nav-cta {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 38px;
+        padding: 7px 15px;
+        border: 1px solid #4b5360;
+        border-radius: 6px;
+        color: #ffffff;
+        transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+      }
+
+      .nav-cta:hover,
+      .nav-cta:focus-visible {
+        border-color: #747e8e;
+        background: #1b1f25;
+      }
+
+      .nav-cta:active,
+      .button:active,
+      .copy-button:active {
+        transform: translateY(1px);
+      }
+
+      .language-switch {
+        display: inline-grid;
+        grid-template-columns: repeat(2, 44px);
+        align-items: center;
+        min-height: 44px;
+        overflow: hidden;
+        border: 1px solid #3e454f;
+        border-radius: 6px;
+        background: #12151a;
+      }
+
+      .language-option {
+        min-width: 44px;
+        min-height: 42px;
+        padding: 0 8px;
+        border: 0;
+        background: transparent;
+        color: #929aa6;
+        font-size: 12px;
+        font-weight: 750;
+        cursor: pointer;
+      }
+
+      .language-option[aria-pressed="true"] {
+        background: #ffffff;
+        color: var(--ink);
+      }
+
+      .language-option:hover,
+      .language-option:focus-visible {
+        color: #ffffff;
+      }
+
+      .language-option[aria-pressed="true"]:hover,
+      .language-option[aria-pressed="true"]:focus-visible {
+        color: var(--ink);
+      }
+
+      .hero,
+      .demo-section {
+        background: var(--dark);
+        color: #ffffff;
+      }
+
+      .hero {
+        position: relative;
+        overflow: hidden;
+        padding: 76px 0 64px;
+      }
+
+      .hero::after {
+        content: "";
+        position: absolute;
+        right: max(24px, calc((100vw - var(--max-width)) / 2));
+        bottom: 0;
+        width: 26%;
+        height: 1px;
+        background: var(--accent);
+        transform-origin: right;
+        animation: line-in 900ms 260ms both cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      .hero-inner {
+        position: relative;
+        z-index: 1;
+        max-width: 940px;
+      }
+
+      .hero-kicker {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0 0 22px;
+        color: #aeb4bd;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 13px;
+        font-weight: 650;
+        text-transform: uppercase;
+      }
+
+      .hero-kicker::before {
+        content: "";
+        width: 8px;
+        height: 8px;
+        background: var(--accent);
+      }
+
+      .hero h1 {
+        max-width: 900px;
+        margin: 0;
+        font-size: 78px;
+        font-weight: 780;
+        line-height: 1.02;
+        letter-spacing: 0;
+      }
+
+      .hero-copy {
+        max-width: 680px;
+        margin: 27px 0 0;
+        color: #b8bec8;
+        font-size: 19px;
+        line-height: 1.55;
+      }
+
+      .hero-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-top: 34px;
+      }
+
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 46px;
+        padding: 10px 18px;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        font-size: 15px;
+        font-weight: 720;
+        white-space: nowrap;
+        transition: background 160ms ease, border-color 160ms ease, color 160ms ease,
+          transform 160ms ease;
+      }
+
+      .button-primary {
+        background: var(--accent);
+        color: #ffffff;
+      }
+
+      .button-primary:hover,
+      .button-primary:focus-visible {
+        background: var(--accent-dark);
+      }
+
+      .button-secondary {
+        border-color: #3e454f;
+        background: transparent;
+        color: #f7f8fa;
+      }
+
+      .button-secondary:hover,
+      .button-secondary:focus-visible {
+        border-color: #737d8c;
+        background: var(--dark-soft);
+      }
+
+      .demo-section {
+        padding: 0 0 74px;
+      }
+
+      .demo-frame {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid #353b45;
+        border-radius: var(--radius);
+        background: #000000;
+        box-shadow: 0 28px 80px rgba(0, 0, 0, 0.42);
+      }
+
+      .demo-badge {
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        z-index: 2;
+        padding: 7px 10px;
+        border: 1px solid rgba(255, 255, 255, 0.26);
+        border-radius: 4px;
+        background: rgba(11, 13, 16, 0.86);
+        color: #ffffff;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .demo-frame img {
+        width: 100%;
+        height: auto;
+      }
+
+      .demo-caption {
+        display: flex;
+        justify-content: space-between;
+        gap: 24px;
+        margin-top: 18px;
+        color: #8f97a3;
+        font-size: 13px;
+      }
+
+      .demo-caption strong {
+        color: #dfe3e8;
+        font-weight: 650;
+      }
+
+      .signal-strip {
+        border-bottom: 1px solid var(--line);
+        background: var(--paper);
+      }
+
+      .signal-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+      }
+
+      .signal {
+        min-height: 124px;
+        padding: 28px 26px;
+        border-left: 1px solid var(--line);
+      }
+
+      .signal:last-child {
+        border-right: 1px solid var(--line);
+      }
+
+      .signal-value {
+        display: block;
+        margin-bottom: 4px;
+        color: var(--ink);
+        font-size: 24px;
+        font-weight: 770;
+        line-height: 1.2;
+      }
+
+      .signal-label {
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .section {
+        padding: 112px 0;
+      }
+
+      .section-heading {
+        max-width: 760px;
+        margin-bottom: 52px;
+      }
+
+      .section-heading h2 {
+        margin: 0;
+        font-size: 48px;
+        line-height: 1.08;
+        letter-spacing: 0;
+      }
+
+      .section-heading p {
+        max-width: 640px;
+        margin: 20px 0 0;
+        color: var(--muted);
+        font-size: 18px;
+      }
+
+      .install-section {
+        background: var(--soft);
+      }
+
+      .install-layout {
+        display: grid;
+        grid-template-columns: minmax(230px, 0.72fr) minmax(0, 1.8fr);
+        align-items: start;
+        gap: 54px;
+      }
+
+      .install-notes {
+        display: grid;
+        gap: 0;
+        border-top: 1px solid #cbd0d7;
+      }
+
+      .install-note {
+        display: grid;
+        grid-template-columns: 34px 1fr;
+        gap: 12px;
+        padding: 19px 0;
+        border-bottom: 1px solid #cbd0d7;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .install-note strong {
+        display: block;
+        margin-bottom: 2px;
+        color: var(--ink);
+        font-size: 15px;
+      }
+
+      .step-number {
+        color: var(--accent);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 13px;
+        font-weight: 750;
+      }
+
+      .code-tool {
+        overflow: hidden;
+        border: 1px solid #272c34;
+        border-radius: var(--radius);
+        background: #0d1014;
+        color: #f2f4f7;
+        box-shadow: 0 18px 48px rgba(31, 37, 45, 0.17);
+      }
+
+      .code-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 58px;
+        border-bottom: 1px solid #2a3038;
+        background: #15191f;
+      }
+
+      .tab-list {
+        display: flex;
+        min-width: 0;
+        overflow-x: auto;
+        scrollbar-width: none;
+      }
+
+      .tab-list::-webkit-scrollbar {
+        display: none;
+      }
+
+      .tab-button {
+        position: relative;
+        min-height: 58px;
+        padding: 0 19px;
+        border: 0;
+        background: transparent;
+        color: #8f98a5;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 13px;
+        font-weight: 650;
+        white-space: nowrap;
+        cursor: pointer;
+      }
+
+      .tab-button::after {
+        content: "";
+        position: absolute;
+        right: 16px;
+        bottom: 0;
+        left: 16px;
+        height: 2px;
+        background: transparent;
+      }
+
+      .tab-button[aria-selected="true"] {
+        color: #ffffff;
+      }
+
+      .tab-button[aria-selected="true"]::after {
+        background: var(--accent);
+      }
+
+      .copy-button {
+        min-width: 72px;
+        min-height: 34px;
+        margin: 0 12px;
+        padding: 5px 10px;
+        border: 1px solid #3a424d;
+        border-radius: 5px;
+        background: #20252d;
+        color: #dfe3e8;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+      }
+
+      .copy-button:hover,
+      .copy-button:focus-visible {
+        border-color: #667181;
+        background: #2a3039;
+      }
+
+      .copy-button[data-copied="true"] {
+        border-color: var(--accent);
+        color: #ffffff;
+      }
+
+      .tab-panel {
+        min-height: 340px;
+      }
+
+      .tab-panel[hidden] {
+        display: none;
+      }
+
+      pre {
+        margin: 0;
+        min-height: 340px;
+        overflow: auto;
+        padding: 28px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 14px;
+        line-height: 1.72;
+        tab-size: 2;
+      }
+
+      code {
+        font-family: inherit;
+      }
+
+      .code-comment {
+        color: #7f8997;
+      }
+
+      .code-key {
+        color: #8db2ff;
+      }
+
+      .features-section {
+        background: var(--paper);
+      }
+
+      .feature-list {
+        border-top: 1px solid var(--line);
+      }
+
+      .feature-row {
+        display: grid;
+        grid-template-columns: 78px minmax(220px, 0.8fr) minmax(280px, 1.4fr);
+        gap: 28px;
+        align-items: start;
+        padding: 29px 0;
+        border-bottom: 1px solid var(--line);
+        transition: background 180ms ease, padding 180ms ease;
+      }
+
+      .feature-row:hover {
+        padding-right: 18px;
+        padding-left: 18px;
+        background: var(--soft);
+      }
+
+      .feature-index {
+        color: var(--accent);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 13px;
+        font-weight: 750;
+      }
+
+      .feature-row h3 {
+        margin: 0;
+        font-size: 22px;
+        line-height: 1.25;
+      }
+
+      .feature-row p {
+        max-width: 600px;
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .delivery-section {
+        position: relative;
+        overflow: hidden;
+        background: var(--accent);
+        color: #ffffff;
+      }
+
+      .delivery-section::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: 12%;
+        width: 1px;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.27);
+      }
+
+      .delivery-grid {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+        gap: 80px;
+        align-items: end;
+      }
+
+      .delivery-section h2 {
+        max-width: 720px;
+        margin: 0;
+        font-size: 52px;
+        line-height: 1.08;
+      }
+
+      .delivery-copy {
+        margin: 0;
+        color: rgba(255, 255, 255, 0.86);
+        font-size: 18px;
+      }
+
+      .delivery-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 28px;
+      }
+
+      .delivery-links .button-primary {
+        background: #ffffff;
+        color: #153a8d;
+      }
+
+      .delivery-links .button-primary:hover,
+      .delivery-links .button-primary:focus-visible {
+        background: #e9efff;
+      }
+
+      .delivery-links .button-secondary {
+        border-color: rgba(255, 255, 255, 0.55);
+        color: #ffffff;
+      }
+
+      .delivery-links .button-secondary:hover,
+      .delivery-links .button-secondary:focus-visible {
+        border-color: #ffffff;
+        background: rgba(0, 0, 0, 0.12);
+      }
+
+      .site-footer {
+        border-top: 1px solid #282d34;
+        background: var(--dark);
+        color: #9ca4af;
+      }
+
+      .footer-inner {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 110px;
+        gap: 24px;
+        font-size: 13px;
+      }
+
+      .footer-links {
+        display: flex;
+        gap: 22px;
+      }
+
+      .footer-links a:hover,
+      .footer-links a:focus-visible {
+        color: #ffffff;
+      }
+
+      .reveal {
+        opacity: 0;
+        transform: translateY(22px);
+        transition: opacity 620ms ease, transform 620ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      .reveal.is-visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .hero-kicker,
+      .hero h1,
+      .hero-copy,
+      .hero-actions {
+        animation: hero-in 720ms both cubic-bezier(0.22, 1, 0.36, 1);
+      }
+
+      .hero h1 {
+        animation-delay: 80ms;
+      }
+
+      .hero-copy {
+        animation-delay: 150ms;
+      }
+
+      .hero-actions {
+        animation-delay: 220ms;
+      }
+
+      @keyframes hero-in {
+        from {
+          opacity: 0;
+          transform: translateY(18px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes line-in {
+        from {
+          transform: scaleX(0);
+        }
+        to {
+          transform: scaleX(1);
+        }
+      }
+
+      :focus-visible {
+        outline: 3px solid rgba(36, 107, 253, 0.55);
+        outline-offset: 3px;
+      }
+
+      @media (max-width: 900px) {
+        .hero h1 {
+          font-size: 64px;
+        }
+
+        .signal-grid {
+          grid-template-columns: repeat(2, 1fr);
+        }
+
+        .signal:nth-child(3) {
+          border-top: 1px solid var(--line);
+        }
+
+        .signal:nth-child(4) {
+          border-top: 1px solid var(--line);
+          border-right: 1px solid var(--line);
+        }
+
+        .install-layout,
+        .delivery-grid {
+          grid-template-columns: 1fr;
+          gap: 38px;
+        }
+
+        .feature-row {
+          grid-template-columns: 56px minmax(190px, 0.75fr) minmax(260px, 1.25fr);
+          gap: 20px;
+        }
+
+        .delivery-section::after {
+          right: 24px;
+        }
+      }
+
+      @media (max-width: 720px) {
+        :root {
+          --header-height: 62px;
+        }
+
+        .container {
+          width: min(calc(100% - 32px), var(--max-width));
+        }
+
+        .nav-links .nav-link:nth-child(-n + 3) {
+          display: none;
+        }
+
+        .nav-links {
+          gap: 12px;
+        }
+
+        .nav-cta {
+          min-height: 40px;
+          padding-inline: 13px;
+        }
+
+        .hero {
+          padding: 58px 0 48px;
+        }
+
+        .hero h1 {
+          font-size: 49px;
+          line-height: 1.04;
+          overflow-wrap: anywhere;
+        }
+
+        .hero-copy {
+          margin-top: 22px;
+          font-size: 17px;
+        }
+
+        .hero-actions {
+          align-items: stretch;
+          flex-direction: column;
+          margin-top: 28px;
+        }
+
+        .button {
+          width: 100%;
+          min-height: 48px;
+        }
+
+        .demo-section {
+          padding-bottom: 48px;
+        }
+
+        .demo-frame {
+          margin-inline: -16px;
+          border-right: 0;
+          border-left: 0;
+          border-radius: 0;
+        }
+
+        .demo-badge {
+          top: 10px;
+          left: 10px;
+          padding: 5px 7px;
+          font-size: 9px;
+        }
+
+        .demo-caption {
+          display: grid;
+          gap: 5px;
+        }
+
+        .signal-grid {
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .signal {
+          min-height: 112px;
+          padding: 22px 18px;
+        }
+
+        .signal-value {
+          font-size: 20px;
+        }
+
+        .section {
+          padding: 78px 0;
+        }
+
+        .section-heading {
+          margin-bottom: 36px;
+        }
+
+        .section-heading h2,
+        .delivery-section h2 {
+          font-size: 38px;
+        }
+
+        .section-heading p,
+        .delivery-copy {
+          font-size: 16px;
+        }
+
+        .install-layout {
+          gap: 30px;
+        }
+
+        .code-toolbar {
+          display: block;
+          padding-bottom: 10px;
+        }
+
+        .tab-list {
+          border-bottom: 1px solid #2a3038;
+        }
+
+        .tab-button {
+          min-height: 52px;
+          padding-inline: 16px;
+        }
+
+        .copy-button {
+          display: block;
+          min-width: 92px;
+          min-height: 38px;
+          margin: 10px 12px 0 auto;
+        }
+
+        .tab-panel,
+        pre {
+          min-height: 390px;
+        }
+
+        pre {
+          padding: 22px 18px;
+          font-size: 12px;
+          line-height: 1.68;
+        }
+
+        .feature-row {
+          grid-template-columns: 38px 1fr;
+          gap: 10px 14px;
+          padding: 24px 0;
+        }
+
+        .feature-row:hover {
+          padding-right: 0;
+          padding-left: 0;
+          background: transparent;
+        }
+
+        .feature-row p {
+          grid-column: 2;
+        }
+
+        .delivery-grid {
+          gap: 24px;
+        }
+
+        .delivery-links {
+          display: grid;
+        }
+
+        .footer-inner {
+          align-items: flex-start;
+          flex-direction: column;
+          justify-content: center;
+          min-height: 150px;
+        }
+      }
+
+      @media (max-width: 390px) {
+        .brand {
+          font-size: 13px;
+        }
+
+        .nav-link {
+          display: none;
+        }
+
+        .nav-cta {
+          display: none;
+        }
+
+        .hero h1 {
+          font-size: 43px;
+        }
+
+        .signal-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .signal,
+        .signal:nth-child(3),
+        .signal:nth-child(4) {
+          border-top: 0;
+          border-right: 1px solid var(--line);
+          border-bottom: 1px solid var(--line);
+        }
+
+        .signal:last-child {
+          border-bottom: 0;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          scroll-behavior: auto !important;
+          transition-duration: 0.01ms !important;
+        }
+
+        .reveal {
+          opacity: 1;
+          transform: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip-link" href="#main" data-i18n="skip">跳到正文</a>
+
+    <header class="site-header" data-scrolled="false">
+      <nav class="nav container" aria-label="主导航" data-i18n-aria="navAria">
+        <a class="brand" href="#top" aria-label="mkdocs-ai-chat 首页" data-i18n-aria="brandAria">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span>mkdocs-ai-chat</span>
+        </a>
+        <div class="nav-links">
+          <a class="nav-link" href="#demo" data-i18n="navDemo">演示</a>
+          <a class="nav-link" href="#install" data-i18n="navInstall">安装</a>
+          <a class="nav-link" href="#features" data-i18n="navFeatures">功能</a>
+          <div class="language-switch" role="group" aria-label="切换语言" data-i18n-aria="languageAria">
+            <button class="language-option" type="button" data-language="zh" aria-pressed="true">中文</button>
+            <button class="language-option" type="button" data-language="en" aria-pressed="false">EN</button>
+          </div>
+          <a class="nav-cta" href="https://github.com/CBDT-JWT/mkdocs-ai-chat">GitHub</a>
+        </div>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section class="hero" id="top">
+        <div class="container hero-inner">
+          <p class="hero-kicker" data-i18n="heroKicker">开源 · 无需 Docker</p>
+          <h1>mkdocs-ai-chat</h1>
+          <p class="hero-copy" data-i18n="heroCopy">用托管前端和一个轻量 Python 服务，为任何 MkDocs 站点添加基于文档的流式 AI 回答。</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="#install" data-i18n="heroInstall">立即安装</a>
+            <a
+              class="button button-secondary"
+              href="https://github.com/CBDT-JWT/mkdocs-ai-chat/blob/main/README.zh-CN.md"
+              data-guide-link
+              data-i18n="heroGuide"
+            >阅读文档</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="demo-section" id="demo" aria-label="产品演示" data-i18n-aria="demoAria">
+        <div class="container">
+          <div class="demo-frame reveal">
+            <span class="demo-badge" data-i18n="demoBadge">真实 MKDOCS 页面</span>
+            <img
+              src="assets/mkdocs-ai-chat-demo.gif"
+              width="1280"
+              height="898"
+              alt="mkdocs-ai-chat 在真实 MkDocs 文档站中回答问题"
+              data-i18n-alt="demoAlt"
+              fetchpriority="high"
+            >
+          </div>
+          <div class="demo-caption reveal">
+            <span>
+              <strong data-i18n="demoCaptionStrong">录制于 EEnotes。</strong>
+              <span data-i18n="demoCaptionBody">组件直接运行在现有文档布局中。</span>
+            </span>
+            <span data-i18n="demoCaptionTail">流式输出 · 来源链接 · Markdown · LaTeX</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="signal-strip" aria-label="项目特点" data-i18n-aria="highlightsAria">
+        <div class="container signal-grid">
+          <div class="signal">
+            <span class="signal-value" data-i18n="signalDockerValue">无需 Docker</span>
+            <span class="signal-label" data-i18n="signalDockerLabel">使用普通 Python venv 和 systemd 服务。</span>
+          </div>
+          <div class="signal">
+            <span class="signal-value" data-i18n="signalHostedValue">托管前端</span>
+            <span class="signal-label" data-i18n="signalHostedLabel">直接从 GitHub Pages 加载已发布的 JS 和 CSS。</span>
+          </div>
+          <div class="signal">
+            <span class="signal-value">SSE</span>
+            <span class="signal-label" data-i18n="signalSseLabel">回答、检索状态和公式都会实时流式显示。</span>
+          </div>
+          <div class="signal">
+            <span class="signal-value" data-i18n="signalMemoryValue">本地记忆</span>
+            <span class="signal-label" data-i18n="signalMemoryLabel">对话历史保存在访问者自己的浏览器中。</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="section install-section" id="install">
+        <div class="container">
+          <div class="section-heading reveal">
+            <h2 data-i18n="installTitle">改三处配置，装一个服务。</h2>
+            <p data-i18n="installBody">使用托管前端、连接自己的 API，并将后端安装到 /srv。</p>
+          </div>
+
+          <div class="install-layout">
+            <div class="install-notes reveal" aria-label="安装步骤" data-i18n-aria="installStepsAria">
+              <div class="install-note">
+                <span class="step-number">01</span>
+                <div>
+                  <strong data-i18n="stepOneTitle">加载前端组件</strong>
+                  <span data-i18n="stepOneBody">在现有 MkDocs 配置中加入两个托管资源。</span>
+                </div>
+              </div>
+              <div class="install-note">
+                <span class="step-number">02</span>
+                <div>
+                  <strong data-i18n="stepTwoTitle">设置接口地址</strong>
+                  <span data-i18n="stepTwoBody">标题、文案、头像和记忆设置都留在自己的仓库中。</span>
+                </div>
+              </div>
+              <div class="install-note">
+                <span class="step-number">03</span>
+                <div>
+                  <strong data-i18n="stepThreeTitle">安装后端服务</strong>
+                  <span data-i18n="stepThreeBody">克隆到 /srv，脚本会处理 venv 和 systemd。</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="code-tool reveal">
+              <div class="code-toolbar">
+                <div class="tab-list" role="tablist" aria-label="安装文件" data-i18n-aria="tabsAria">
+                  <button
+                    class="tab-button"
+                    id="tab-mkdocs"
+                    type="button"
+                    role="tab"
+                    aria-selected="true"
+                    aria-controls="panel-mkdocs"
+                    tabindex="0"
+                  >mkdocs.yml</button>
+                  <button
+                    class="tab-button"
+                    id="tab-config"
+                    type="button"
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="panel-config"
+                    tabindex="-1"
+                  >config.js</button>
+                  <button
+                    class="tab-button"
+                    id="tab-server"
+                    type="button"
+                    role="tab"
+                    aria-selected="false"
+                    aria-controls="panel-server"
+                    tabindex="-1"
+                  >server.sh</button>
+                </div>
+                <button
+                  class="copy-button"
+                  type="button"
+                  data-copy-target="code-mkdocs"
+                  data-i18n="copy"
+                  aria-live="polite"
+                >复制</button>
+              </div>
+
+              <div class="tab-panel" id="panel-mkdocs" role="tabpanel" aria-labelledby="tab-mkdocs">
+                <pre><code id="code-mkdocs"><span class="code-key">extra_css:</span>
+  - https://cbdt-jwt.github.io/mkdocs-ai-chat/ai-chat.css
+
+<span class="code-key">extra_javascript:</span>
+  - js/mkdocs-ai-chat-config.js
+  - https://cbdt-jwt.github.io/mkdocs-ai-chat/ai-chat.js</code></pre>
+              </div>
+
+              <div class="tab-panel" id="panel-config" role="tabpanel" aria-labelledby="tab-config" hidden>
+                <pre><code id="code-config">window.mkdocsAiChat = {
+  endpoint: "https://ai.example.com/api/chat",
+  title: "文档 AI",
+  welcome: "可以向我询问这份文档中的内容。",
+  placeholder: "输入你的问题...",
+  memoryTurns: 6,
+  clearLabel: "清除历史",
+  selectionActionLabel: "问问 AI"
+};</code></pre>
+              </div>
+
+              <div class="tab-panel" id="panel-server" role="tabpanel" aria-labelledby="tab-server" hidden>
+                <pre><code id="code-server"># Ubuntu / Debian
+sudo apt-get install -y git python3 python3-venv
+sudo mkdir -p /srv/mkdocs-ai-chat
+sudo chown "$USER":"$USER" /srv/mkdocs-ai-chat
+
+git clone https://github.com/CBDT-JWT/mkdocs-ai-chat.git \
+  /srv/mkdocs-ai-chat
+cd /srv/mkdocs-ai-chat
+cp .env.example .env
+
+# 在 .env 中填写仓库、文档地址和 DeepSeek 密钥。
+nano .env
+bash scripts/install_service.sh</code></pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section features-section" id="features">
+        <div class="container">
+          <div class="section-heading reveal">
+            <h2 data-i18n="featuresTitle">文档就是交互界面。</h2>
+            <p data-i18n="featuresBody">前端保持轻巧，后端负责检索、上下文和来源质量。</p>
+          </div>
+
+          <div class="feature-list">
+            <article class="feature-row reveal">
+              <span class="feature-index">01</span>
+              <h3 data-i18n="featureOneTitle">Agent 自主检索</h3>
+              <p data-i18n="featureOneBody">模型自行决定检索词，可以多次搜索，并在无需检索时直接回答。</p>
+            </article>
+            <article class="feature-row reveal">
+              <span class="feature-index">02</span>
+              <h3 data-i18n="featureTwoTitle">真正有用的来源链接</h3>
+              <p data-i18n="featureTwoBody">来源会跳到对应标题、保留文字高亮，并在悬停时预览 Markdown 和公式。</p>
+            </article>
+            <article class="feature-row reveal">
+              <span class="feature-index">03</span>
+              <h3 data-i18n="featureThreeTitle">实时富文本</h3>
+              <p data-i18n="featureThreeBody">标题、表格、代码、引用、分割线和 LaTeX 都能在流式回答过程中渲染。</p>
+            </article>
+            <article class="feature-row reveal">
+              <span class="feature-index">04</span>
+              <h3 data-i18n="featureFourTitle">留在本地的上下文</h3>
+              <p data-i18n="featureFourBody">多轮历史保存在 localStorage 中，刷新后恢复，并且可在回答过程中清除。</p>
+            </article>
+            <article class="feature-row reveal">
+              <span class="feature-index">05</span>
+              <h3 data-i18n="featureFiveTitle">为移动端而设计</h3>
+              <p data-i18n="featureFiveBody">面板在手机上变为全屏工作区，适配虚拟键盘、安全区域和稳定触控目标。</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section delivery-section">
+        <div class="container delivery-grid">
+          <h2 class="reveal" data-i18n="deliveryTitle">保留 MkDocs 流程，只添加 AI 层。</h2>
+          <div class="reveal">
+            <p class="delivery-copy" data-i18n="deliveryBody">组件由 GitHub Pages 发布；API 密钥、索引和文档同步仍然保留在自己的服务器上。</p>
+            <div class="delivery-links">
+              <a
+                class="button button-primary"
+                href="https://github.com/CBDT-JWT/mkdocs-ai-chat/blob/main/README.zh-CN.md#接入-mkdocs"
+                data-guide-link
+                data-i18n="deliveryGuide"
+              >打开安装文档</a>
+              <a class="button button-secondary" href="https://github.com/CBDT-JWT/mkdocs-ai-chat" data-i18n="deliverySource">查看源码</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-inner">
+        <span data-i18n="footerTagline">mkdocs-ai-chat · 开源 · 无需 Docker</span>
+        <div class="footer-links">
+          <a href="https://github.com/CBDT-JWT/mkdocs-ai-chat">GitHub</a>
+          <a href="https://github.com/CBDT-JWT/mkdocs-ai-chat/issues" data-i18n="footerIssues">问题反馈</a>
+          <a href="#top" data-i18n="footerTop">回到顶部</a>
+        </div>
+      </div>
+    </footer>
+
+    <script>
+      (function () {
+        "use strict";
+
+        var header = document.querySelector(".site-header");
+        var tabs = Array.from(document.querySelectorAll('[role="tab"]'));
+        var panels = Array.from(document.querySelectorAll('[role="tabpanel"]'));
+        var copyButton = document.querySelector(".copy-button");
+        var languageOptions = Array.from(document.querySelectorAll("[data-language]"));
+        var currentLanguage = "zh";
+
+        var translations = {
+          zh: {
+            title: "mkdocs-ai-chat｜为 MkDocs 添加 AI 对话",
+            description: "无需 Docker，为 MkDocs 或 Zensical 文档站添加支持检索与流式输出的 AI 对话。",
+            ogTitle: "mkdocs-ai-chat｜为 MkDocs 添加 AI 对话",
+            ogLocale: "zh_CN",
+            skip: "跳到正文",
+            navAria: "主导航",
+            brandAria: "mkdocs-ai-chat 首页",
+            navDemo: "演示",
+            navInstall: "安装",
+            navFeatures: "功能",
+            languageAria: "切换语言",
+            heroKicker: "开源 · 无需 Docker",
+            heroCopy: "用托管前端和一个轻量 Python 服务，为任何 MkDocs 站点添加基于文档的流式 AI 回答。",
+            heroInstall: "立即安装",
+            heroGuide: "阅读文档",
+            demoAria: "产品演示",
+            demoBadge: "真实 MKDOCS 页面",
+            demoAlt: "mkdocs-ai-chat 在真实 MkDocs 文档站中回答问题",
+            demoCaptionStrong: "录制于 EEnotes。",
+            demoCaptionBody: "组件直接运行在现有文档布局中。",
+            demoCaptionTail: "流式输出 · 来源链接 · Markdown · LaTeX",
+            highlightsAria: "项目特点",
+            signalDockerValue: "无需 Docker",
+            signalDockerLabel: "使用普通 Python venv 和 systemd 服务。",
+            signalHostedValue: "托管前端",
+            signalHostedLabel: "直接从 GitHub Pages 加载已发布的 JS 和 CSS。",
+            signalSseLabel: "回答、检索状态和公式都会实时流式显示。",
+            signalMemoryValue: "本地记忆",
+            signalMemoryLabel: "对话历史保存在访问者自己的浏览器中。",
+            installTitle: "改三处配置，装一个服务。",
+            installBody: "使用托管前端、连接自己的 API，并将后端安装到 /srv。",
+            installStepsAria: "安装步骤",
+            stepOneTitle: "加载前端组件",
+            stepOneBody: "在现有 MkDocs 配置中加入两个托管资源。",
+            stepTwoTitle: "设置接口地址",
+            stepTwoBody: "标题、文案、头像和记忆设置都留在自己的仓库中。",
+            stepThreeTitle: "安装后端服务",
+            stepThreeBody: "克隆到 /srv，脚本会处理 venv 和 systemd。",
+            tabsAria: "安装文件",
+            copy: "复制",
+            copied: "已复制",
+            selectText: "请手动选择",
+            featuresTitle: "文档就是交互界面。",
+            featuresBody: "前端保持轻巧，后端负责检索、上下文和来源质量。",
+            featureOneTitle: "Agent 自主检索",
+            featureOneBody: "模型自行决定检索词，可以多次搜索，并在无需检索时直接回答。",
+            featureTwoTitle: "真正有用的来源链接",
+            featureTwoBody: "来源会跳到对应标题、保留文字高亮，并在悬停时预览 Markdown 和公式。",
+            featureThreeTitle: "实时富文本",
+            featureThreeBody: "标题、表格、代码、引用、分割线和 LaTeX 都能在流式回答过程中渲染。",
+            featureFourTitle: "留在本地的上下文",
+            featureFourBody: "多轮历史保存在 localStorage 中，刷新后恢复，并且可在回答过程中清除。",
+            featureFiveTitle: "为移动端而设计",
+            featureFiveBody: "面板在手机上变为全屏工作区，适配虚拟键盘、安全区域和稳定触控目标。",
+            deliveryTitle: "保留 MkDocs 流程，只添加 AI 层。",
+            deliveryBody: "组件由 GitHub Pages 发布；API 密钥、索引和文档同步仍然保留在自己的服务器上。",
+            deliveryGuide: "打开安装文档",
+            deliverySource: "查看源码",
+            footerTagline: "mkdocs-ai-chat · 开源 · 无需 Docker",
+            footerIssues: "问题反馈",
+            footerTop: "回到顶部",
+            guideHref: "https://github.com/CBDT-JWT/mkdocs-ai-chat/blob/main/README.zh-CN.md#接入-mkdocs"
+          },
+          en: {
+            title: "mkdocs-ai-chat | AI chat for MkDocs",
+            description: "Add a documentation-aware, streaming AI chat to any MkDocs or Zensical site without Docker.",
+            ogTitle: "mkdocs-ai-chat | AI chat for MkDocs",
+            ogLocale: "en_US",
+            skip: "Skip to content",
+            navAria: "Primary navigation",
+            brandAria: "mkdocs-ai-chat home",
+            navDemo: "Demo",
+            navInstall: "Install",
+            navFeatures: "Features",
+            languageAria: "Switch language",
+            heroKicker: "Open source · No Docker",
+            heroCopy: "Add grounded, streaming AI answers to any MkDocs site with a hosted widget and one small Python service.",
+            heroInstall: "Install now",
+            heroGuide: "Read the guide",
+            demoAria: "Product demonstration",
+            demoBadge: "REAL MKDOCS SESSION",
+            demoAlt: "mkdocs-ai-chat answering a question inside a live MkDocs documentation site",
+            demoCaptionStrong: "Captured on EEnotes.",
+            demoCaptionBody: "The widget runs inside the existing documentation layout.",
+            demoCaptionTail: "Streaming · Sources · Markdown · LaTeX",
+            highlightsAria: "Project highlights",
+            signalDockerValue: "0 Docker",
+            signalDockerLabel: "A regular Python venv and systemd service.",
+            signalHostedValue: "Hosted UI",
+            signalHostedLabel: "Load the published JS and CSS from GitHub Pages.",
+            signalSseLabel: "Answers, retrieval status, and formulas stream live.",
+            signalMemoryValue: "Local memory",
+            signalMemoryLabel: "Conversation history stays in the visitor's browser.",
+            installTitle: "Three edits. One service.",
+            installBody: "Use the hosted frontend, point it at your API, and install the backend in /srv.",
+            installStepsAria: "Installation steps",
+            stepOneTitle: "Load the widget",
+            stepOneBody: "Add two hosted assets to your existing MkDocs configuration.",
+            stepTwoTitle: "Set the endpoint",
+            stepTwoBody: "Keep your title, labels, avatar, and memory settings local.",
+            stepThreeTitle: "Install the service",
+            stepThreeBody: "Clone into /srv; the script handles venv and systemd.",
+            tabsAria: "Installation files",
+            copy: "Copy",
+            copied: "Copied",
+            selectText: "Select text",
+            featuresTitle: "Documentation is the interface.",
+            featuresBody: "The chat stays compact while the backend handles retrieval, context, and source quality.",
+            featureOneTitle: "Agent-led retrieval",
+            featureOneBody: "The model chooses search queries, can search more than once, and answers directly when retrieval is unnecessary.",
+            featureTwoTitle: "Useful source links",
+            featureTwoBody: "Sources jump to the indexed heading, preserve text highlighting, and preview Markdown and formulas on hover.",
+            featureThreeTitle: "Live rich text",
+            featureThreeBody: "Headings, tables, code, quotes, horizontal rules, and LaTeX render while the answer is still streaming.",
+            featureFourTitle: "Context that stays local",
+            featureFourBody: "Multi-turn history lives in localStorage, restores after reload, and can be cleared even during a response.",
+            featureFiveTitle: "Mobile by design",
+            featureFiveBody: "The panel becomes a full-screen workspace with keyboard-aware sizing, safe areas, and stable touch targets.",
+            deliveryTitle: "Keep your MkDocs pipeline. Add the AI layer.",
+            deliveryBody: "The widget ships from GitHub Pages. Your API key, index, and documentation sync remain on your server.",
+            deliveryGuide: "Open setup",
+            deliverySource: "View source",
+            footerTagline: "mkdocs-ai-chat · Open source · No Docker",
+            footerIssues: "Issues",
+            footerTop: "Back to top",
+            guideHref: "https://github.com/CBDT-JWT/mkdocs-ai-chat#add-it-to-mkdocs"
+          }
+        };
+
+        var codeSamples = {
+          zh: {
+            config: [
+              "window.mkdocsAiChat = {",
+              "  endpoint: \"https://ai.example.com/api/chat\",",
+              "  title: \"文档 AI\",",
+              "  welcome: \"可以向我询问这份文档中的内容。\",",
+              "  placeholder: \"输入你的问题...\",",
+              "  memoryTurns: 6,",
+              "  clearLabel: \"清除历史\",",
+              "  selectionActionLabel: \"问问 AI\"",
+              "};"
+            ].join("\n"),
+            server: [
+              "# Ubuntu / Debian",
+              "sudo apt-get install -y git python3 python3-venv",
+              "sudo mkdir -p /srv/mkdocs-ai-chat",
+              "sudo chown \"$USER\":\"$USER\" /srv/mkdocs-ai-chat",
+              "",
+              "git clone https://github.com/CBDT-JWT/mkdocs-ai-chat.git \\",
+              "  /srv/mkdocs-ai-chat",
+              "cd /srv/mkdocs-ai-chat",
+              "cp .env.example .env",
+              "",
+              "# 在 .env 中填写仓库、文档地址和 DeepSeek 密钥。",
+              "nano .env",
+              "bash scripts/install_service.sh"
+            ].join("\n")
+          },
+          en: {
+            config: [
+              "window.mkdocsAiChat = {",
+              "  endpoint: \"https://ai.example.com/api/chat\",",
+              "  title: \"Docs AI\",",
+              "  welcome: \"Ask a question about this documentation.\",",
+              "  placeholder: \"Ask the documentation...\",",
+              "  memoryTurns: 6,",
+              "  clearLabel: \"Clear history\",",
+              "  selectionActionLabel: \"Ask AI\"",
+              "};"
+            ].join("\n"),
+            server: [
+              "# Ubuntu / Debian",
+              "sudo apt-get install -y git python3 python3-venv",
+              "sudo mkdir -p /srv/mkdocs-ai-chat",
+              "sudo chown \"$USER\":\"$USER\" /srv/mkdocs-ai-chat",
+              "",
+              "git clone https://github.com/CBDT-JWT/mkdocs-ai-chat.git \\",
+              "  /srv/mkdocs-ai-chat",
+              "cd /srv/mkdocs-ai-chat",
+              "cp .env.example .env",
+              "",
+              "# Set your repository, site URL, and DeepSeek key in .env.",
+              "nano .env",
+              "bash scripts/install_service.sh"
+            ].join("\n")
+          }
+        };
+
+        function text(key) {
+          return translations[currentLanguage][key] || translations.zh[key] || key;
+        }
+
+        function applyLanguage(language, persist) {
+          currentLanguage = language === "en" ? "en" : "zh";
+          document.documentElement.lang = currentLanguage === "zh" ? "zh-CN" : "en";
+          document.title = text("title");
+
+          document.querySelector('meta[name="description"]').content = text("description");
+          document.querySelector('meta[property="og:title"]').content = text("ogTitle");
+          document.querySelector('meta[property="og:description"]').content = text("description");
+          document.querySelector('meta[property="og:locale"]').content = text("ogLocale");
+
+          document.querySelectorAll("[data-i18n]").forEach(function (node) {
+            node.textContent = text(node.dataset.i18n);
+          });
+
+          document.querySelectorAll("[data-i18n-aria]").forEach(function (node) {
+            node.setAttribute("aria-label", text(node.dataset.i18nAria));
+          });
+
+          document.querySelectorAll("[data-i18n-alt]").forEach(function (node) {
+            node.alt = text(node.dataset.i18nAlt);
+          });
+
+          document.querySelectorAll("[data-guide-link]").forEach(function (node) {
+            node.href = text("guideHref");
+          });
+
+          document.getElementById("code-config").textContent = codeSamples[currentLanguage].config;
+          document.getElementById("code-server").textContent = codeSamples[currentLanguage].server;
+
+          languageOptions.forEach(function (option) {
+            option.setAttribute("aria-pressed", option.dataset.language === currentLanguage ? "true" : "false");
+          });
+
+          copyButton.textContent = text("copy");
+          copyButton.dataset.copied = "false";
+
+          if (persist) {
+            try {
+              localStorage.setItem("mkdocs-ai-chat:site-language", currentLanguage);
+            } catch (error) {
+              // Language switching still works when storage is unavailable.
+            }
+          }
+        }
+
+        function updateHeader() {
+          header.dataset.scrolled = window.scrollY > 12 ? "true" : "false";
+        }
+
+        function selectTab(tab, focus) {
+          tabs.forEach(function (candidate) {
+            var active = candidate === tab;
+            candidate.setAttribute("aria-selected", active ? "true" : "false");
+            candidate.tabIndex = active ? 0 : -1;
+          });
+
+          panels.forEach(function (panel) {
+            panel.hidden = panel.id !== tab.getAttribute("aria-controls");
+          });
+
+          copyButton.dataset.copyTarget = tab.getAttribute("aria-controls").replace("panel-", "code-");
+          copyButton.textContent = text("copy");
+          copyButton.dataset.copied = "false";
+
+          if (focus) tab.focus();
+        }
+
+        function fallbackCopy(text) {
+          var input = document.createElement("textarea");
+          input.value = text;
+          input.setAttribute("readonly", "");
+          input.style.position = "fixed";
+          input.style.opacity = "0";
+          document.body.appendChild(input);
+          input.select();
+          document.execCommand("copy");
+          input.remove();
+        }
+
+        function copyActiveCode() {
+          var target = document.getElementById(copyButton.dataset.copyTarget);
+          if (!target) return;
+
+          var codeText = target.textContent;
+          var operation = navigator.clipboard && window.isSecureContext
+            ? navigator.clipboard.writeText(codeText)
+            : Promise.resolve(fallbackCopy(codeText));
+
+          operation.then(function () {
+            copyButton.textContent = text("copied");
+            copyButton.dataset.copied = "true";
+            window.setTimeout(function () {
+              copyButton.textContent = text("copy");
+              copyButton.dataset.copied = "false";
+            }, 1600);
+          }).catch(function () {
+            copyButton.textContent = text("selectText");
+          });
+        }
+
+        tabs.forEach(function (tab, index) {
+          tab.addEventListener("click", function () {
+            selectTab(tab, false);
+          });
+
+          tab.addEventListener("keydown", function (event) {
+            if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+            event.preventDefault();
+            var direction = event.key === "ArrowRight" ? 1 : -1;
+            var next = (index + direction + tabs.length) % tabs.length;
+            selectTab(tabs[next], true);
+          });
+        });
+
+        languageOptions.forEach(function (option) {
+          option.addEventListener("click", function () {
+            applyLanguage(option.dataset.language, true);
+          });
+        });
+
+        var savedLanguage = "";
+        try {
+          savedLanguage = localStorage.getItem("mkdocs-ai-chat:site-language") || "";
+        } catch (error) {
+          savedLanguage = "";
+        }
+
+        applyLanguage(savedLanguage === "en" ? "en" : "zh", false);
+        selectTab(tabs[0], false);
+        copyButton.addEventListener("click", copyActiveCode);
+        window.addEventListener("scroll", updateHeader, { passive: true });
+        updateHeader();
+
+        var revealNodes = Array.from(document.querySelectorAll(".reveal"));
+        if ("IntersectionObserver" in window) {
+          var observer = new IntersectionObserver(function (entries) {
+            entries.forEach(function (entry) {
+              if (!entry.isIntersecting) return;
+              entry.target.classList.add("is-visible");
+              observer.unobserve(entry.target);
+            });
+          }, { rootMargin: "0px 0px -8%", threshold: 0.12 });
+
+          revealNodes.forEach(function (node) {
+            observer.observe(node);
+          });
+        } else {
+          revealNodes.forEach(function (node) {
+            node.classList.add("is-visible");
+          });
+        }
+      }());
+    </script>
+  </body>
+</html>

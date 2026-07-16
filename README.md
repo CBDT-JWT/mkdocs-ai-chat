@@ -6,6 +6,12 @@ A lightweight AI chat widget for MkDocs and Zensical documentation sites. It use
 
 No Docker is required. The frontend is already published on GitHub Pages, so most users only need to update `mkdocs.yml` and install the backend service.
 
+## Demo
+
+[Open the project page](https://cbdt-jwt.github.io/mkdocs-ai-chat/)
+
+![mkdocs-ai-chat answering a question inside an EEnotes documentation page](site/assets/mkdocs-ai-chat-demo.gif)
+
 ## Add It to MkDocs
 
 ### 1. Load the hosted widget
